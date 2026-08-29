@@ -18,3 +18,4 @@
 @keyframes organizer-marquee{from{transform:translateX(0)}to{transform:translateX(-50%)}}
 @media(max-width:800px){.organizers-head{grid-template-columns:1fr;gap:24px}.organizer-window{margin:42px -22px -72px;padding:0 22px 72px}.organizer{width:180px;flex-basis:180px}.organizer-photo,.organizer img{height:220px}.organizer h3{font-size:22px}}
 @media(prefers-reduced-motion:reduce){.organizer-track{animation:none;overflow-x:auto}}
+.copyright::after{content:'Website developed by Souvick Kumar Halder.';display:block;margin-top:4px;color:#8a9a90}
