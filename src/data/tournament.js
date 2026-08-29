@@ -9,3 +9,13 @@ export const results = [];
 export const standings = [];
 export const champions = [];
 export const gallery = [];
+export const organizers = [
+  { name: 'Aarav Sen', role: 'Tournament Director · Demo', photo: 'https://i.pravatar.cc/600?img=11' },
+  { name: 'Priya Das', role: 'Operations Lead · Demo', photo: 'https://i.pravatar.cc/600?img=47' },
+  { name: 'Rohan Ghosh', role: 'Competition Manager · Demo', photo: 'https://i.pravatar.cc/600?img=12' },
+  { name: 'Maya Roy', role: 'Communications Lead · Demo', photo: 'https://i.pravatar.cc/600?img=45' },
+  { name: 'Kabir Mukherjee', role: 'Venue Coordinator · Demo', photo: 'https://i.pravatar.cc/600?img=13' },
+  { name: 'Ishita Paul', role: 'Team Liaison · Demo', photo: 'https://i.pravatar.cc/600?img=44' },
+  { name: 'Dev Banerjee', role: 'Matchday Producer · Demo', photo: 'https://i.pravatar.cc/600?img=14' },
+  { name: 'Ananya Bose', role: 'Volunteer Coordinator · Demo', photo: 'https://i.pravatar.cc/600?img=48' }
+];
