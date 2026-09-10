@@ -8,7 +8,8 @@ import {
 import { defaultTournament, getSession, isCloudEnabled, loadTournament, makeId, saveTournament, signIn, signOut } from './lib/tournamentStore';
 import './styles.css';
 
-const logo = '/assets/tournament-logo.png';
+const logo = '/assets/tournament-logo.jpg';
+const collegeLogo = '/assets/bbit-college-logo.png';
 const heroImage = '/assets/football-hero-background.png';
 const poster = '/assets/tournament-poster-final.png';
 
@@ -91,7 +92,8 @@ function PublicSite({ tournament, route, go, notice, setNotice }) {
   return <div className="public-app">
     <a className="skip-link" href="#main-content">Skip to content</a>
     <header className="public-header">
-      <button className="public-brand" onClick={() => navigate('#home')} aria-label="Tournament home"><img src={logo} alt="" /><span>{settings.name}<small>{settings.edition} / {settings.year}</small></span></button>
+      <button className="public-brand" onClick={() => navigate('#home')} aria-label="Tournament home"><img src={logo} alt="Gulabi Devi Cup" /><span>{settings.name}<small>{settings.edition} / {settings.year}</small></span></button>
+      <div className="header-college-badge" title="Budge Budge Institute of Technology"><img src={collegeLogo} alt="BBIT Logo" /><span>BBIT</span></div>
       <nav className="public-nav" aria-label="Primary navigation">{publicRoutes.map(([label, target]) => <button className={route === target ? 'active' : ''} key={target} onClick={() => navigate(target)}>{label}</button>)}</nav>
       <button className="public-cta" onClick={() => navigate('#register')}>Register <ArrowUpRight size={15} /></button>
       <button className="public-menu" onClick={() => setMenuOpen(!menuOpen)} aria-expanded={menuOpen} aria-label="Open navigation">{menuOpen ? <X /> : <Menu />}</button>
@@ -119,7 +121,7 @@ function Home({ tournament, go }) {
     <section className="home-hero">
       <div className="home-hero-image" style={{ backgroundImage: `url(${heroImage})` }} />
       <div className="home-hero-shade" />
-      <div className="home-hero-content"><div className="eyebrow"><span /> BBIT PRESENTS</div><p className="hero-pretitle">THE ANNUAL INTER-COLLEGE CHAMPIONSHIP</p><h1>GULABI DEVI<br /><em>MEMORIAL CUP</em></h1><div className="hero-edition"><strong>14<sup>TH</sup></strong><span>EDITION</span><i /><span>{settings.format}<br />{settings.matchType}</span></div><div className="hero-actions"><button className="primary-button" onClick={() => go('#register')}>Register your team <ArrowUpRight size={18} /></button><button className="hero-link" onClick={() => go('#fixtures')}>Match centre <ChevronRight size={18} /></button></div></div>
+      <div className="home-hero-content"><div className="eyebrow"><img src={collegeLogo} alt="BBIT" className="hero-college-logo" /><span>BBIT PRESENTS</span></div><p className="hero-pretitle">THE ANNUAL INTER-COLLEGE CHAMPIONSHIP</p><h1>GULABI DEVI<br /><em>MEMORIAL CUP</em></h1><div className="hero-edition"><strong>14<sup>TH</sup></strong><span>EDITION</span><i /><span>{settings.format}<br />{settings.matchType}</span></div><div className="hero-actions"><button className="primary-button" onClick={() => go('#register')}>Register your team <ArrowUpRight size={18} /></button><button className="hero-link" onClick={() => go('#fixtures')}>Match centre <ChevronRight size={18} /></button></div></div>
       <div className="hero-poster"><img src={poster} alt="Gulabi Devi Memorial Cup official poster" /><span>Official poster / {settings.year}</span></div>
       <div className="hero-side-copy">BBIT <i /> {settings.year}</div>
       <div className="hero-facts"><HeroFact label="Tournament dates" value={settings.date} /><HeroFact label="Venue" value={settings.venue} /><HeroFact label="Entry fee" value={`INR ${Number(settings.entryFee || 0).toLocaleString('en-IN')}`} note="per team" /></div>
@@ -155,7 +157,7 @@ function RegisterPage({ settings, contacts, go }) { return <section className="r
 
 function ContactPage({ contacts, settings }) { return <><PageHero kicker="TOURNAMENT OFFICE" title="LET'S TALK FOOTBALL." text="Contact the organising team for registration, fixtures or tournament enquiries." /> <section className="content-shell contact-grid">{contacts.map((contact) => <a href={`tel:${contact.phone}`} key={contact.id}><small>{contact.role || 'Tournament contact'}</small><h2>{contact.name}</h2><span>{contact.phone}</span><Phone size={19} /></a>)}<div className="contact-address"><MapPin size={19} /><p>{settings.address}</p></div></section></>; }
 
-function PublicFooter({ settings, go }) { return <footer className="public-footer"><div className="footer-brand"><img src={logo} alt="" /><div><strong>{settings.name}</strong><small>{settings.edition} / {settings.organizer}</small></div></div><div className="footer-links">{publicRoutes.slice(1, 5).map(([label, target]) => <button key={target} onClick={() => go(target)}>{label}</button>)}</div><div className="footer-bottom">Copyright {settings.year} {settings.name}. All rights reserved.</div></footer>; }
+function PublicFooter({ settings, go }) { return <footer className="public-footer"><div className="footer-brand"><img src={logo} alt="Gulabi Devi Cup Logo" className="footer-logo-main" /><img src={collegeLogo} alt="BBIT College Logo" className="footer-logo-college" title="Budge Budge Institute of Technology" /><div><strong>{settings.name}</strong><small>{settings.edition} / {settings.organizer}</small></div></div><div className="footer-links">{publicRoutes.slice(1, 5).map(([label, target]) => <button key={target} onClick={() => go(target)}>{label}</button>)}</div><div className="footer-bottom">Copyright {settings.year} {settings.name}. Organized by Budge Budge Institute of Technology (BBIT). All rights reserved.</div></footer>; }
 
 function Toast({ notice, dismiss }) { if (!notice) return null; return <div className={`toast ${notice.type}`} role="status"><span>{notice.type === 'success' ? <CheckCircle2 size={17} /> : <CircleAlert size={17} />}</span>{notice.text}<button onClick={dismiss} aria-label="Dismiss">×</button></div>; }
 
