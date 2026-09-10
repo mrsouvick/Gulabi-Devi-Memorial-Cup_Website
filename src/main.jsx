@@ -13,6 +13,14 @@ const collegeLogo = '/assets/bbit-college-logo.png';
 const heroImage = '/assets/football-hero-background.png';
 const poster = '/assets/tournament-poster-final.png';
 
+const dignitaries = [
+  { title: 'CHAIRMAN', role: 'CHIEF PATRON', image: '/assets/dignitaries/chairman.jpg' },
+  { title: 'PRINCIPAL', role: 'PATRON & MENTOR', image: '/assets/dignitaries/principal.jpg' },
+  { title: 'DEAN OF STUDENTS', role: 'ADVISORY HEAD', image: '/assets/dignitaries/dean.jpg' },
+  { title: 'REGISTRAR', role: 'EXECUTIVE CONVENOR', image: '/assets/dignitaries/registrar.jpg' },
+  { title: 'DEPUTY REGISTRAR', role: 'CO-CONVENOR', image: '/assets/dignitaries/deputy-registrar.jpg' }
+];
+
 const publicRoutes = [
   ['Home', '#home'], ['Teams', '#teams'], ['Fixtures', '#fixtures'], ['Standings', '#standings'],
   ['Bracket', '#bracket'], ['History', '#history'], ['Venue', '#venue'], ['Contact', '#contact']
@@ -127,8 +135,29 @@ function Home({ tournament, go }) {
     </section>
     <section className="home-status"><CalendarDays size={20} /><div><small>TOURNAMENT STATUS</small><strong>{settings.status}</strong></div><p>{settings.registrationOpen ? 'Team registration is currently open. Secure your place in the tournament.' : 'Registration details and the official draw will be announced here.'}</p><button onClick={() => go('#contact')}>Get updates <ArrowUpRight size={15} /></button></section>
     <section className="home-intro section-shell"><SectionLabel number="01" text="THE TOURNAMENT" /><div className="intro-layout"><h2>PLAY FOR<br /><em>MORE.</em></h2><div><p>{settings.about}</p><button className="text-button" onClick={() => go('#history')}>Explore the legacy <ArrowUpRight size={16} /></button></div></div><div className="home-metrics"><Metric value="14" label="Editions" /><Metric value={String(teams.length).padStart(2, '0')} label="Teams announced" /><Metric value={String(fixtures.length).padStart(2, '0')} label="Fixtures published" /><Metric value="11" label="Players a side" /></div></section>
-    <section className="home-grid-section section-shell"><SectionLabel number="02" text="TOURNAMENT DESK" /><div className="home-grid"><InfoCard icon={<Users />} title="Teams" text={teams.length ? `${teams.length} confirmed team${teams.length === 1 ? '' : 's'} are on the board.` : 'The official team list will appear after confirmations.'} action="View teams" onClick={() => go('#teams')} /><InfoCard icon={<CalendarDays />} title="Fixtures" text={fixtures.length ? `${fixtures.length} fixture${fixtures.length === 1 ? '' : 's'} have been published.` : 'The match schedule will be released by the tournament office.'} action="Open match centre" onClick={() => go('#fixtures')} /><InfoCard icon={<Trophy />} title="The cup" text="League football, knockout tension, one trophy to lift." action="Tournament history" onClick={() => go('#history')} /></div></section>
-    <section className="home-venue section-shell"><div className="venue-art"><MapPin size={36} /><span>{settings.venue}</span></div><div><SectionLabel number="03" text="THE VENUE" /><h2>WHERE THE<br /><em>GAME LIVES.</em></h2><p>{settings.address}</p><button className="text-button" onClick={() => go('#venue')}>Venue details <ArrowUpRight size={16} /></button></div></section>
+    <section className="home-dignitaries section-shell">
+      <SectionLabel number="02" text="PATRONS & COLLEGE LEADERSHIP" />
+      <div className="dignitaries-header">
+        <h2>HONORABLE<br /><em>PATRONS & LEADERS</em></h2>
+        <p>Under the visionary guidance and leadership of Budge Budge Institute of Technology (BBIT) management and administration.</p>
+      </div>
+      <div className="dignitaries-grid">
+        {dignitaries.map((item, index) => (
+          <article className="dignitary-card" key={index}>
+            <div className="dignitary-image-wrap">
+              <img src={item.image} alt={item.title} />
+              <span className="dignitary-badge">{item.role}</span>
+            </div>
+            <div className="dignitary-body">
+              <h3>{item.title}</h3>
+              <p>Budge Budge Institute of Technology</p>
+            </div>
+          </article>
+        ))}
+      </div>
+    </section>
+    <section className="home-grid-section section-shell"><SectionLabel number="03" text="TOURNAMENT DESK" /><div className="home-grid"><InfoCard icon={<Users />} title="Teams" text={teams.length ? `${teams.length} confirmed team${teams.length === 1 ? '' : 's'} are on the board.` : 'The official team list will appear after confirmations.'} action="View teams" onClick={() => go('#teams')} /><InfoCard icon={<CalendarDays />} title="Fixtures" text={fixtures.length ? `${fixtures.length} fixture${fixtures.length === 1 ? '' : 's'} have been published.` : 'The match schedule will be released by the tournament office.'} action="Open match centre" onClick={() => go('#fixtures')} /><InfoCard icon={<Trophy />} title="The cup" text="League football, knockout tension, one trophy to lift." action="Tournament history" onClick={() => go('#history')} /></div></section>
+    <section className="home-venue section-shell"><div className="venue-art"><MapPin size={36} /><span>{settings.venue}</span></div><div><SectionLabel number="04" text="THE VENUE" /><h2>WHERE THE<br /><em>GAME LIVES.</em></h2><p>{settings.address}</p><button className="text-button" onClick={() => go('#venue')}>Venue details <ArrowUpRight size={16} /></button></div></section>
   </>;
 }
 
