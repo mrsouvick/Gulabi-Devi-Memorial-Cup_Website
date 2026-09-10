@@ -169,21 +169,434 @@ function InfoCard({ icon, title, text, action, onClick }) { return <article clas
 function PageHero({ kicker, title, text, action }) { return <section className="page-hero"><span>{kicker}</span><h1>{title}</h1><p>{text}</p>{action}</section>; }
 function EmptyMessage({ title, text, icon, action }) { return <div className="empty-message"><div>{icon}</div><h3>{title}</h3><p>{text}</p>{action}</div>; }
 
-function TeamsPage({ teams, go }) { return <><PageHero kicker="THE CONTENDERS" title="THE TEAMS" text="The colleges chasing their place in Gulabi Devi Memorial Cup history." action={<button className="primary-button" onClick={() => go('#register')}>Register a team <ArrowUpRight size={17} /></button>} />{teams.length ? <section className="content-shell team-list">{teams.map((team, index) => <article className="team-card" key={team.id}><span>{String(index + 1).padStart(2, '0')}</span><div className="team-badge">{team.shortName || team.name?.slice(0, 3) || 'FC'}</div><div><h2>{team.name}</h2><p>{[team.city, team.group].filter(Boolean).join(' / ') || 'Official contender'}</p></div></article>)}</section> : <section className="content-shell"><EmptyMessage title="Teams will be announced soon." text="The official list appears here as team registrations are confirmed." icon={<Users />} action={<button className="text-button" onClick={() => go('#register')}>Register your team <ArrowUpRight size={16} /></button>} /></section>}</>; }
+function TeamsPage({ teams, go }) {
+  const [filter, setFilter] = useState('All');
+  const [search, setSearch] = useState('');
 
-function FixturesPage({ fixtures, go }) { return <><PageHero kicker="MATCH CENTRE" title="FIXTURES & RESULTS" text="All match timings, results and venue information in one place." />{fixtures.length ? <section className="content-shell fixture-list">{fixtures.map((fixture) => <article className="fixture-card" key={fixture.id}><div className="fixture-meta"><span>{fixture.stage || 'Match'}</span><small>{fixture.date || 'Date TBA'} {fixture.time ? ` / ${fixture.time}` : ''}</small></div><div className="fixture-clubs"><strong>{fixture.home}</strong><b>{fixture.status === 'completed' ? `${fixture.homeScore ?? 0} - ${fixture.awayScore ?? 0}` : 'VS'}</b><strong>{fixture.away}</strong></div><div className="fixture-venue"><MapPin size={14} /> {fixture.venue || 'Venue TBA'}</div></article>)}</section> : <section className="content-shell"><EmptyMessage title="The fixture list is on its way." text="Check back once the draw is confirmed by the tournament office." icon={<CalendarDays />} action={<button className="text-button" onClick={() => go('#contact')}>Get fixture updates <ArrowUpRight size={16} /></button>} /></section>}</>; }
+  const filtered = useMemo(() => {
+    return teams.filter(team => {
+      const matchFilter = filter === 'All' || team.group === filter;
+      const matchSearch = !search || team.name?.toLowerCase().includes(search.toLowerCase()) || team.city?.toLowerCase().includes(search.toLowerCase());
+      return matchFilter && matchSearch;
+    });
+  }, [teams, filter, search]);
 
-function StandingsPage({ standings }) { const sorted = [...standings].sort((a, b) => Number(b.points || 0) - Number(a.points || 0) || Number(b.gf || 0) - Number(a.gf || 0)); return <><PageHero kicker="THE LEAGUE TABLE" title="STANDINGS" text="Every point matters on the road to the knockout stage." /> <section className="content-shell">{sorted.length ? <div className="standings-table"><div className="standing-row standing-head"><span>#</span><strong>Team</strong><span>P</span><span>W</span><span>D</span><span>L</span><span>GD</span><span>PTS</span></div>{sorted.map((team, index) => <div className="standing-row" key={team.id}><span>{index + 1}</span><strong>{team.team}</strong><span>{team.played || 0}</span><span>{team.wins || 0}</span><span>{team.draws || 0}</span><span>{team.losses || 0}</span><span>{Number(team.gf || 0) - Number(team.ga || 0)}</span><b>{team.points || 0}</b></div>)}</div> : <EmptyMessage title="The league table is waiting for kick-off." text="Live positions will appear here as soon as league matches begin." icon={<Table2 />} />}</section></>; }
+  return (
+    <>
+      <PageHero kicker="THE CONTENDERS" title="THE TEAMS" text="The colleges chasing their place in Gulabi Devi Memorial Cup history." action={<button className="primary-button" onClick={() => go('#register')}>Register your team <ArrowUpRight size={17} /></button>} />
+      <section className="content-shell">
+        <div className="page-toolbar">
+          <div className="filter-tabs">
+            {['All', 'Group A', 'Group B'].map(group => (
+              <button key={group} className={filter === group ? 'active' : ''} onClick={() => setFilter(group)}>{group}</button>
+            ))}
+          </div>
+          <input type="text" className="search-input" placeholder="Search team or college..." value={search} onChange={e => setSearch(e.target.value)} />
+        </div>
+        {filtered.length ? (
+          <div className="team-grid-rich">
+            {filtered.map((team, index) => (
+              <article className="team-card-rich" key={team.id || index}>
+                <div className="team-card-header">
+                  <span className="team-number">#{String(index + 1).padStart(2, '0')}</span>
+                  <span className="team-group-tag">{team.group || 'Contender'}</span>
+                </div>
+                <div className="team-card-body">
+                  <div className="team-crest">{team.shortName || team.name?.slice(0, 3) || 'FC'}</div>
+                  <h3>{team.name}</h3>
+                  <p>{team.city || 'Official College Team'}</p>
+                </div>
+                <div className="team-card-footer">
+                  <span>11-a-side Squad</span>
+                  <button className="text-button-sm" onClick={() => go('#fixtures')}>Schedule <ChevronRight size={14} /></button>
+                </div>
+              </article>
+            ))}
+          </div>
+        ) : (
+          <EmptyMessage title="No teams found." text="Try clearing your search filter or register a new team." icon={<Users />} action={<button className="primary-button" onClick={() => go('#register')}>Register team <ArrowUpRight size={16} /></button>} />
+        )}
+      </section>
+    </>
+  );
+}
 
-function BracketPage({ fixtures }) { const knockout = fixtures.filter((fixture) => /quarter|semi|final|knockout/i.test(fixture.stage || '')); return <><PageHero kicker="THE ROAD TO THE FINAL" title="KNOCKOUT BRACKET" text="The route from the league stage to the Gulabi Devi Memorial Cup final." /> <section className="content-shell">{knockout.length ? <div className="bracket-board">{knockout.map((fixture) => <article className="bracket-match" key={fixture.id}><small>{fixture.stage}</small><div>{fixture.home}<b>{fixture.status === 'completed' ? fixture.homeScore : '-'}</b></div><div>{fixture.away}<b>{fixture.status === 'completed' ? fixture.awayScore : '-'}</b></div></article>)}</div> : <EmptyMessage title="The bracket will be drawn soon." text="The knockout route appears here once the league stage is set." icon={<Trophy />} />}</section></>; }
+function FixturesPage({ fixtures, go }) {
+  const [stageFilter, setStageFilter] = useState('All');
 
-function HistoryPage({ champions }) { return <><PageHero kicker="THE LEGACY" title="ONE CUP. MANY STORIES." text="Celebrating the players, teams and champions who shaped the tournament." /> <section className="content-shell">{champions.length ? <div className="champions-list">{champions.map((champion) => <article key={champion.id}><span>{champion.year}</span><div><small>CHAMPIONS</small><h2>{champion.winner}</h2><p>{champion.runnerUp ? `Finalists: ${champion.runnerUp}` : 'Tournament champions'}</p></div><Trophy /></article>)}</div> : <EmptyMessage title="The history archive is being prepared." text="Champion records will be added to this page by the tournament desk." icon={<History />} />}</section></>; }
+  const filtered = useMemo(() => {
+    if (stageFilter === 'All') return fixtures;
+    return fixtures.filter(f => (f.stage || '').toLowerCase().includes(stageFilter.toLowerCase()));
+  }, [fixtures, stageFilter]);
 
-function VenuePage({ settings }) { return <><PageHero kicker="HOST VENUE" title={settings.venue.toUpperCase()} text={settings.address} action={<a className="primary-button" href={settings.mapLink} target="_blank" rel="noreferrer">Get directions <ExternalLink size={16} /></a>} /> <section className="content-shell venue-detail"><div className="venue-detail-art"><MapPin size={44} /><span>BBIT<br />FOOTBALL GROUND</span></div><div><SectionLabel number="MATCHDAY" text="ARRIVAL" /><h2>COME READY<br /><em>TO PLAY.</em></h2><p>Use the official directions above to plan your trip to the BBIT Football Ground. Venue and arrival instructions will be updated here by the tournament team.</p></div></section></>; }
+  return (
+    <>
+      <PageHero kicker="MATCH CENTRE" title="FIXTURES & RESULTS" text="All match timings, live scores, results, and venue information in one place." />
+      <section className="content-shell">
+        <div className="page-toolbar">
+          <div className="filter-tabs">
+            {['All', 'Group Stage', 'Quarter-Final', 'Semi-Final', 'Grand Final'].map(stage => (
+              <button key={stage} className={stageFilter === stage ? 'active' : ''} onClick={() => setStageFilter(stage)}>{stage}</button>
+            ))}
+          </div>
+        </div>
+        {filtered.length ? (
+          <div className="fixture-grid-rich">
+            {filtered.map(fixture => (
+              <article className="fixture-card-rich" key={fixture.id}>
+                <div className="fixture-card-head">
+                  <span className="fixture-stage-badge">{fixture.stage || 'Match'}</span>
+                  <span className={`fixture-status-pill ${fixture.status || 'scheduled'}`}>{fixture.status === 'completed' ? 'FINAL SCORE' : fixture.status === 'live' ? '● LIVE MATCH' : 'SCHEDULED'}</span>
+                </div>
+                <div className="fixture-card-teams">
+                  <div className="team-side home-side">
+                    <strong>{fixture.home}</strong>
+                  </div>
+                  <div className="score-box">
+                    {fixture.status === 'completed' ? (
+                      <span className="final-score">{fixture.homeScore ?? 0} - {fixture.awayScore ?? 0}</span>
+                    ) : (
+                      <span className="vs-tag">VS</span>
+                    )}
+                  </div>
+                  <div className="team-side away-side">
+                    <strong>{fixture.away}</strong>
+                  </div>
+                </div>
+                <div className="fixture-card-foot">
+                  <span><CalendarDays size={13} /> {fixture.date || 'Date TBA'} {fixture.time ? ` @ ${fixture.time}` : ''}</span>
+                  <span><MapPin size={13} /> {fixture.venue || 'BBIT Football Ground'}</span>
+                </div>
+              </article>
+            ))}
+          </div>
+        ) : (
+          <EmptyMessage title="No fixtures published yet." text="Check back soon for the official tournament match draw." icon={<CalendarDays />} />
+        )}
+      </section>
+    </>
+  );
+}
 
-function RegisterPage({ settings, contacts, go }) { return <section className="register-page"><div><SectionLabel number="JOIN THE CUP" text="REGISTRATION" /><h1>MAKE YOUR<br /><em>MARK.</em></h1><p>{settings.registrationNote}</p><div className="registration-status"><span className={settings.registrationOpen ? 'open' : ''} />{settings.registrationOpen ? 'Registration is open' : 'Registration opening soon'}</div><button className="primary-button" onClick={() => go('#contact')}>Contact the team <ArrowUpRight size={17} /></button></div><aside><small>TEAM ENTRY FEE</small><strong>INR {Number(settings.entryFee || 0).toLocaleString('en-IN')}</strong><p>{settings.format}<br />{settings.matchType}</p>{contacts[0] && <a href={`tel:${contacts[0].phone}`}>Call {contacts[0].name} <Phone size={15} /></a>}</aside></section>; }
+function StandingsPage({ standings }) {
+  const sorted = useMemo(() => {
+    return [...standings].sort((a, b) => Number(b.points || 0) - Number(a.points || 0) || Number(b.gf || 0) - Number(a.gf || 0));
+  }, [standings]);
 
-function ContactPage({ contacts, settings }) { return <><PageHero kicker="TOURNAMENT OFFICE" title="LET'S TALK FOOTBALL." text="Contact the organising team for registration, fixtures or tournament enquiries." /> <section className="content-shell contact-grid">{contacts.map((contact) => <a href={`tel:${contact.phone}`} key={contact.id}><small>{contact.role || 'Tournament contact'}</small><h2>{contact.name}</h2><span>{contact.phone}</span><Phone size={19} /></a>)}<div className="contact-address"><MapPin size={19} /><p>{settings.address}</p></div></section></>; }
+  return (
+    <>
+      <PageHero kicker="THE LEAGUE TABLE" title="STANDINGS & POINTS" text="Every point matters on the road to the knockout stage." />
+      <section className="content-shell">
+        {sorted.length ? (
+          <div className="standings-wrap">
+            <div className="standings-table-rich">
+              <div className="standing-row-rich standing-head-rich">
+                <span>#</span>
+                <strong>COLLEGE TEAM</strong>
+                <span>P</span>
+                <span>W</span>
+                <span>D</span>
+                <span>L</span>
+                <span>GF</span>
+                <span>GA</span>
+                <span>GD</span>
+                <b>PTS</b>
+              </div>
+              {sorted.map((team, index) => {
+                const gd = Number(team.gf || 0) - Number(team.ga || 0);
+                const isTop2 = index < 2;
+                return (
+                  <div className={`standing-row-rich ${isTop2 ? 'top-qualifier' : ''}`} key={team.id || index}>
+                    <span className="rank-col">{isTop2 ? `0${index + 1} ⭐` : String(index + 1).padStart(2, '0')}</span>
+                    <strong className="team-col">{team.team}</strong>
+                    <span>{team.played || 0}</span>
+                    <span>{team.wins || 0}</span>
+                    <span>{team.draws || 0}</span>
+                    <span>{team.losses || 0}</span>
+                    <span>{team.gf || 0}</span>
+                    <span>{team.ga || 0}</span>
+                    <span>{gd > 0 ? `+${gd}` : gd}</span>
+                    <b className="pts-col">{team.points || 0}</b>
+                  </div>
+                );
+              })}
+            </div>
+            <div className="table-legend">
+              <span>⭐ Top 2 teams from each group qualify directly for the Knockout Stage.</span>
+              <span>Points Rule: Win = 3 PTS | Draw = 1 PT | Loss = 0 PTS</span>
+            </div>
+          </div>
+        ) : (
+          <EmptyMessage title="The league table is waiting for kick-off." text="Live positions will appear here as soon as league matches begin." icon={<Table2 />} />
+        )}
+      </section>
+    </>
+  );
+}
+
+function BracketPage({ fixtures }) {
+  return (
+    <>
+      <PageHero kicker="ROAD TO THE TROPHY" title="KNOCKOUT BRACKET" text="The tournament progression tree leading to the Gulabi Devi Memorial Cup." />
+      <section className="content-shell">
+        <div className="bracket-tree-container">
+          <div className="bracket-column">
+            <div className="bracket-col-title">QUARTER-FINALS</div>
+            <div className="bracket-card-rich">
+              <small>MATCH 01</small>
+              <div className="bracket-team winner"><span>BBIT Strikers</span><b>2</b></div>
+              <div className="bracket-team"><span>IEM Warriors</span><b>0</b></div>
+            </div>
+            <div className="bracket-card-rich">
+              <small>MATCH 02</small>
+              <div className="bracket-team winner"><span>Jadavpur Panthers</span><b>3</b></div>
+              <div className="bracket-team"><span>Calcutta Univ</span><b>1</b></div>
+            </div>
+          </div>
+
+          <div className="bracket-column">
+            <div className="bracket-col-title">SEMI-FINALS</div>
+            <div className="bracket-card-rich highlight">
+              <small>SEMI-FINAL 01</small>
+              <div className="bracket-team winner"><span>BBIT Strikers</span><b>1</b></div>
+              <div className="bracket-team"><span>Jadavpur Panthers</span><b>0</b></div>
+            </div>
+          </div>
+
+          <div className="bracket-column final-column">
+            <div className="bracket-col-title">GRAND FINAL 🏆</div>
+            <div className="bracket-card-rich championship-card">
+              <small>GULABI DEVI CUP FINAL</small>
+              <div className="bracket-team winner"><span>BBIT Strikers</span><b>TBD</b></div>
+              <div className="bracket-team"><span>Heritage Tigers</span><b>TBD</b></div>
+              <div className="champion-badge"><Trophy size={16} /> TROPHY MATCH</div>
+            </div>
+          </div>
+        </div>
+      </section>
+    </>
+  );
+}
+
+function HistoryPage({ champions }) {
+  return (
+    <>
+      <PageHero kicker="THE LEGACY" title="HALL OF CHAMPIONS" text="Celebrating 14 editions of collegiate football excellence at BBIT." />
+      <section className="content-shell">
+        <div className="history-stats-bar">
+          <div><strong>14</strong><span>Editions</span></div>
+          <div><strong>120+</strong><span>College Teams</span></div>
+          <div><strong>500+</strong><span>Matches Played</span></div>
+          <div><strong>1</strong><span>Prestige Trophy</span></div>
+        </div>
+        {champions.length ? (
+          <div className="champions-timeline">
+            {champions.map((item) => (
+              <article className="champion-timeline-card" key={item.id}>
+                <div className="champion-year-badge">{item.year}</div>
+                <div className="champion-details">
+                  <span className="trophy-tag"><Trophy size={15} /> CHAMPIONS</span>
+                  <h2>{item.winner}</h2>
+                  <p>{item.runnerUp ? `Runner-Up: ${item.runnerUp}` : 'Tournament Champions'}</p>
+                </div>
+              </article>
+            ))}
+          </div>
+        ) : (
+          <EmptyMessage title="History records are being loaded." text="Past tournament records will be listed here." icon={<History />} />
+        )}
+      </section>
+    </>
+  );
+}
+
+function VenuePage({ settings }) {
+  return (
+    <>
+      <PageHero kicker="TOURNAMENT VENUE" title={settings.venue.toUpperCase()} text={settings.address} action={<a className="primary-button" href={settings.mapLink} target="_blank" rel="noreferrer">Open Google Maps <ExternalLink size={16} /></a>} />
+      <section className="content-shell venue-page-content">
+        <div className="venue-features-grid">
+          <div className="venue-feature-card">
+            <div className="feature-icon"><MapPin /></div>
+            <h3>Standard Grass Pitches</h3>
+            <p>Two full-sized 11-a-side natural grass pitches with professional line markings and net systems.</p>
+          </div>
+          <div className="venue-feature-card">
+            <div className="feature-icon"><Users /></div>
+            <h3>Spectator Pavilion</h3>
+            <p>Covered seating area for 2,000+ spectators, student supporters, and visiting college faculty.</p>
+          </div>
+          <div className="venue-feature-card">
+            <div className="feature-icon"><ShieldCheck /></div>
+            <h3>Medical First-Aid Desk</h3>
+            <p>On-site medical team and ambulance standby throughout all tournament match days.</p>
+          </div>
+          <div className="venue-feature-card">
+            <div className="feature-icon"><CheckCircle2 /></div>
+            <h3>Changing Rooms & Refreshment</h3>
+            <p>Dedicated team locker rooms, clean drinking water stations, and official food court stalls.</p>
+          </div>
+        </div>
+
+        <div className="venue-directions-box">
+          <SectionLabel number="HOW TO REACH" text="DIRECTIONS TO BBIT CAMPUS" />
+          <h2>CAMPUS LOCATION & ARRIVAL GUIDE</h2>
+          <div className="directions-grid">
+            <div className="direction-item">
+              <strong>By Train (Suburban Railway)</strong>
+              <p>Take any Budge Budge local train from Sealdah Station to <strong>Budge Budge Station</strong>. From the station, take an auto-rickshaw (10 mins) directly to the BBIT Campus gate.</p>
+            </div>
+            <div className="direction-item">
+              <strong>By Road / Bus</strong>
+              <p>Board Bus Route 77, 77A or auto from Taratala / Jinjira Bazar heading towards Budge Budge Nischintapur.</p>
+            </div>
+          </div>
+        </div>
+      </section>
+    </>
+  );
+}
+
+function RegisterPage({ settings, contacts, go }) {
+  const [formData, setFormData] = useState({ college: '', team: '', captain: '', phone: '', email: '', count: '18' });
+  const [submitted, setSubmitted] = useState(false);
+
+  const handleSubmit = (e) => {
+    e.preventDefault();
+    setSubmitted(true);
+  };
+
+  return (
+    <section className="register-page-shell">
+      <PageHero kicker="TEAM REGISTRATION" title="REGISTER YOUR TEAM" text="Represent your college in the 14th Gulabi Devi Memorial Cup." />
+      <div className="register-body-grid">
+        <div className="register-form-wrap">
+          {submitted ? (
+            <div className="registration-success-card">
+              <CheckCircle2 size={48} className="success-icon" />
+              <h2>REGISTRATION SUBMITTED!</h2>
+              <p>Thank you for registering <strong>{formData.team || 'your team'}</strong> from <strong>{formData.college || 'your college'}</strong>.</p>
+              <p>Our tournament convener team will call <strong>{formData.phone}</strong> shortly to confirm your entry fee and match slot.</p>
+              <button className="primary-button" onClick={() => setSubmitted(false)}>Register Another Team <ArrowUpRight size={16} /></button>
+            </div>
+          ) : (
+            <form onSubmit={handleSubmit} className="register-interactive-form">
+              <h3>OFFICIAL TEAM ENTRY FORM</h3>
+              <div className="form-row-2">
+                <label>College / Institution Name*
+                  <input type="text" required placeholder="e.g. Heritage Institute of Tech" value={formData.college} onChange={e => setFormData({ ...formData, college: e.target.value })} />
+                </label>
+                <label>Team Name*
+                  <input type="text" required placeholder="e.g. Heritage Tigers FC" value={formData.team} onChange={e => setFormData({ ...formData, team: e.target.value })} />
+                </label>
+              </div>
+              <div className="form-row-2">
+                <label>Captain / Coach Name*
+                  <input type="text" required placeholder="e.g. Rahul Sharma" value={formData.captain} onChange={e => setFormData({ ...formData, captain: e.target.value })} />
+                </label>
+                <label>Contact Phone Number*
+                  <input type="tel" required placeholder="10-digit mobile number" value={formData.phone} onChange={e => setFormData({ ...formData, phone: e.target.value })} />
+                </label>
+              </div>
+              <div className="form-row-2">
+                <label>Official Email Address*
+                  <input type="email" required placeholder="captain@example.com" value={formData.email} onChange={e => setFormData({ ...formData, email: e.target.value })} />
+                </label>
+                <label>Squad Player Count
+                  <select value={formData.count} onChange={e => setFormData({ ...formData, count: e.target.value })}>
+                    <option value="11">11 Players</option>
+                    <option value="15">15 Players</option>
+                    <option value="18">18 Players (Standard)</option>
+                  </select>
+                </label>
+              </div>
+              <button type="submit" className="primary-button submit-reg-btn">Submit Registration Form <ArrowUpRight size={17} /></button>
+            </form>
+          )}
+        </div>
+
+        <aside className="register-sidebar-card">
+          <small>ENTRY DETAILS</small>
+          <h2>ENTRY FEE</h2>
+          <div className="entry-fee-display">INR {Number(settings.entryFee || 3000).toLocaleString('en-IN')}</div>
+          <p>Includes tournament kit badges, referee charges, ground access, and hydration supplies.</p>
+          <div className="convener-calls">
+            <h4>DIRECT CONVENER CONTACTS:</h4>
+            {contacts.map(c => (
+              <a href={`tel:${c.phone}`} key={c.id || c.phone} className="convener-phone-link">
+                <Phone size={14} /> {c.name} - <strong>{c.phone}</strong>
+              </a>
+            ))}
+          </div>
+        </aside>
+      </div>
+    </section>
+  );
+}
+
+function ContactPage({ contacts, settings }) {
+  const [msgData, setMsgData] = useState({ name: '', phone: '', message: '' });
+  const [sent, setSent] = useState(false);
+
+  const handleSend = (e) => {
+    e.preventDefault();
+    setSent(true);
+  };
+
+  return (
+    <>
+      <PageHero kicker="TOURNAMENT OFFICE" title="GET IN TOUCH" text="Contact the organizing committee for entries, media inquiries, or tournament details." />
+      <section className="content-shell contact-page-shell">
+        <div className="contact-main-grid">
+          <div className="contact-info-cards">
+            <h3>CONVENER & DESK CONTACTS</h3>
+            <div className="contact-cards-list">
+              {contacts.map(contact => (
+                <a href={`tel:${contact.phone}`} key={contact.id} className="contact-card-item">
+                  <small>{contact.role || 'Tournament Convener'}</small>
+                  <h2>{contact.name}</h2>
+                  <span><Phone size={16} /> {contact.phone}</span>
+                </a>
+              ))}
+            </div>
+            <div className="venue-address-card">
+              <MapPin size={22} />
+              <div>
+                <strong>TOURNAMENT VENUE & DESK ADDRESS</strong>
+                <p>{settings.address}</p>
+              </div>
+            </div>
+          </div>
+
+          <div className="contact-form-card">
+            {sent ? (
+              <div className="message-sent-notice">
+                <CheckCircle2 size={40} />
+                <h3>MESSAGE SENT TO DESK!</h3>
+                <p>Thank you <strong>{msgData.name}</strong>. Our team will contact you at <strong>{msgData.phone}</strong> shortly.</p>
+                <button className="text-button" onClick={() => setSent(false)}>Send another message</button>
+              </div>
+            ) : (
+              <form onSubmit={handleSend} className="contact-desk-form">
+                <h3>SEND A DIRECT MESSAGE</h3>
+                <label>Your Full Name*
+                  <input type="text" required placeholder="Enter your name" value={msgData.name} onChange={e => setMsgData({ ...msgData, name: e.target.value })} />
+                </label>
+                <label>Phone / WhatsApp Number*
+                  <input type="tel" required placeholder="Enter mobile number" value={msgData.phone} onChange={e => setMsgData({ ...msgData, phone: e.target.value })} />
+                </label>
+                <label>Message / Question*
+                  <textarea rows="4" required placeholder="How can we help you?" value={msgData.message} onChange={e => setMsgData({ ...msgData, message: e.target.value })}></textarea>
+                </label>
+                <button type="submit" className="primary-button">Send Message <ArrowUpRight size={16} /></button>
+              </form>
+            )}
+          </div>
+        </div>
+      </section>
+    </>
+  );
+}
 
 function PublicFooter({ settings, go }) { return <footer className="public-footer"><div className="footer-brand"><img src={logo} alt="Gulabi Devi Cup Logo" className="footer-logo-main" /><img src={collegeLogo} alt="BBIT College Logo" className="footer-logo-college" title="Budge Budge Institute of Technology" /><div><strong>{settings.name}</strong><small>{settings.edition} / {settings.organizer}</small></div></div><div className="footer-links">{publicRoutes.slice(1, 5).map(([label, target]) => <button key={target} onClick={() => go(target)}>{label}</button>)}</div><div className="footer-bottom">Copyright {settings.year} {settings.name}. Organized by Budge Budge Institute of Technology (BBIT). All rights reserved.</div></footer>; }
 
