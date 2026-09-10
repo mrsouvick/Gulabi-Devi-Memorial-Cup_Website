@@ -93,7 +93,6 @@ function PublicSite({ tournament, route, go, notice, setNotice }) {
     <a className="skip-link" href="#main-content">Skip to content</a>
     <header className="public-header">
       <button className="public-brand" onClick={() => navigate('#home')} aria-label="Tournament home"><img src={logo} alt="Gulabi Devi Cup" /><span>{settings.name}<small>{settings.edition} / {settings.year}</small></span></button>
-      <div className="header-college-badge" title="Budge Budge Institute of Technology"><img src={collegeLogo} alt="BBIT Logo" /><span>BBIT</span></div>
       <nav className="public-nav" aria-label="Primary navigation">{publicRoutes.map(([label, target]) => <button className={route === target ? 'active' : ''} key={target} onClick={() => navigate(target)}>{label}</button>)}</nav>
       <button className="public-cta" onClick={() => navigate('#register')}>Register <ArrowUpRight size={15} /></button>
       <button className="public-menu" onClick={() => setMenuOpen(!menuOpen)} aria-expanded={menuOpen} aria-label="Open navigation">{menuOpen ? <X /> : <Menu />}</button>
@@ -121,7 +120,7 @@ function Home({ tournament, go }) {
     <section className="home-hero">
       <div className="home-hero-image" style={{ backgroundImage: `url(${heroImage})` }} />
       <div className="home-hero-shade" />
-      <div className="home-hero-content"><div className="eyebrow"><img src={collegeLogo} alt="BBIT" className="hero-college-logo" /><span>BBIT PRESENTS</span></div><p className="hero-pretitle">THE ANNUAL INTER-COLLEGE CHAMPIONSHIP</p><h1>GULABI DEVI<br /><em>MEMORIAL CUP</em></h1><div className="hero-edition"><strong>14<sup>TH</sup></strong><span>EDITION</span><i /><span>{settings.format}<br />{settings.matchType}</span></div><div className="hero-actions"><button className="primary-button" onClick={() => go('#register')}>Register your team <ArrowUpRight size={18} /></button><button className="hero-link" onClick={() => go('#fixtures')}>Match centre <ChevronRight size={18} /></button></div></div>
+      <div className="home-hero-content"><div className="eyebrow"><span /> BBIT PRESENTS</div><p className="hero-pretitle">THE ANNUAL INTER-COLLEGE CHAMPIONSHIP</p><h1>GULABI DEVI<br /><em>MEMORIAL CUP</em></h1><div className="hero-edition"><strong>14<sup>TH</sup></strong><span>EDITION</span><i /><span>{settings.format}<br />{settings.matchType}</span></div><div className="hero-actions"><button className="primary-button" onClick={() => go('#register')}>Register your team <ArrowUpRight size={18} /></button><button className="hero-link" onClick={() => go('#fixtures')}>Match centre <ChevronRight size={18} /></button></div></div>
       <div className="hero-poster"><img src={poster} alt="Gulabi Devi Memorial Cup official poster" /><span>Official poster / {settings.year}</span></div>
       <div className="hero-side-copy">BBIT <i /> {settings.year}</div>
       <div className="hero-facts"><HeroFact label="Tournament dates" value={settings.date} /><HeroFact label="Venue" value={settings.venue} /><HeroFact label="Entry fee" value={`INR ${Number(settings.entryFee || 0).toLocaleString('en-IN')}`} note="per team" /></div>
