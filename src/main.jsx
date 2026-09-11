@@ -3,9 +3,10 @@ import { createRoot } from 'react-dom/client';
 import {
   ArrowUpRight, CalendarDays, CheckCircle2, ChevronLeft, ChevronRight, CircleAlert,
   Cloud, ExternalLink, History, LayoutDashboard, LockKeyhole, LogOut, MapPin, Menu,
-  Pencil, Phone, Plus, Save, Settings, ShieldCheck, Table2, Trophy, Trash2, Users, X
+  Pencil, Phone, Plus, Radio, Save, Settings, ShieldCheck, Table2, Trophy, Trash2, Users, X,
+  Zap, Play, Pause, Square, Minus
 } from 'lucide-react';
-import { defaultTournament, getSession, isCloudEnabled, loadTournament, makeId, saveTournament, signIn, signOut, submitPublicRegistration, submitPublicMessage } from './lib/tournamentStore';
+import { defaultTournament, getSession, isCloudEnabled, loadTournament, makeId, saveTournament, signIn, signOut, submitPublicRegistration, submitPublicMessage, subscribeToRealtime } from './lib/tournamentStore';
 import './styles.css';
 
 const logo = '/assets/tournament-logo.jpg';
@@ -27,9 +28,10 @@ const publicRoutes = [
 ];
 
 const adminSections = [
-  ['dashboard', 'Overview', LayoutDashboard], ['settings', 'Tournament', Settings], ['teams', 'Teams', Users],
-  ['fixtures', 'Fixtures', CalendarDays], ['standings', 'Standings', Table2], ['champions', 'History', History],
-  ['contacts', 'Contacts', Phone], ['dignitaries', 'Patrons', Users], ['messages', 'Messages', Phone], ['registrations', 'Registrations', Users]
+  ['dashboard', 'Overview', LayoutDashboard], ['live', 'Live Match Console', Radio], ['settings', 'Tournament', Settings],
+  ['teams', 'Teams', Users], ['fixtures', 'Fixtures', CalendarDays], ['standings', 'Standings', Table2],
+  ['champions', 'History', History], ['contacts', 'Contacts', Phone], ['dignitaries', 'Patrons', Users],
+  ['messages', 'Messages', Phone], ['registrations', 'Registrations', Users]
 ];
 
 function routeFromLocation() {
@@ -60,7 +62,18 @@ function App() {
 
     fetchLatest();
 
-    const interval = setInterval(() => fetchLatest(true), 10000);
+    // Real-time subscription (Supabase WebSocket + BroadcastChannel cross-tab sync)
+    const unsubscribe = subscribeToRealtime((data) => {
+      if (alive && data) {
+        setTournament(data);
+      }
+    });
+
+    // Adaptive polling: 3s when live match present, 6s standard
+    const isAnyMatchLive = Boolean(tournament?.fixtures?.some(f => f.status === 'live'));
+    const pollIntervalMs = isAnyMatchLive ? 3000 : 6000;
+    const interval = setInterval(() => fetchLatest(true), pollIntervalMs);
+
     const onFocus = () => fetchLatest(true);
     const onLocationChange = () => { setRoute(routeFromLocation()); window.scrollTo({ top: 0, behavior: 'smooth' }); };
 
@@ -69,12 +82,13 @@ function App() {
     window.addEventListener('hashchange', onLocationChange);
     return () => {
       alive = false;
+      unsubscribe();
       clearInterval(interval);
       window.removeEventListener('focus', onFocus);
       window.removeEventListener('popstate', onLocationChange);
       window.removeEventListener('hashchange', onLocationChange);
     };
-  }, []);
+  }, [tournament?.fixtures?.some(f => f.status === 'live')]);
 
   const go = (next) => {
     if (window.location.pathname !== next) {
@@ -726,7 +740,270 @@ function AdminPortal({ tournament, save, go, notice, setNotice }) {
   const [active, setActive] = useState('dashboard');
   if (!session) return <AdminLogin onSuccess={setSession} go={go} />;
   const exit = () => { signOut(); setSession(null); };
-  return <div className="admin-app"><aside className="admin-sidebar"><button className="admin-brand" onClick={() => go('/')}><img src={logo} alt="" /><span>TOURNAMENT<br /><em>DESK</em></span></button><div className="admin-profile"><span>{session.email?.slice(0, 1).toUpperCase()}</span><div><strong>{session.email}</strong><small>{isCloudEnabled ? 'Secure cloud session' : 'Local preview mode'}</small></div></div><nav>{adminSections.map(([key, label, Icon]) => <button className={active === key ? 'active' : ''} key={key} onClick={() => setActive(key)}><Icon size={17} />{label}</button>)}</nav><div className="admin-sidebar-footer"><button onClick={() => go('/')}><ChevronLeft size={16} /> Public website</button><button onClick={exit}><LogOut size={16} /> Sign out</button></div></aside><main className="admin-main"><Toast notice={notice} dismiss={() => setNotice(null)} /><AdminTopbar active={active} tournament={tournament} go={go} />{active === 'dashboard' && <AdminDashboard tournament={tournament} setActive={setActive} />}{active === 'settings' && <SettingsEditor data={tournament} save={save} />}{['teams', 'fixtures', 'standings', 'champions', 'contacts', 'dignitaries', 'messages', 'registrations'].includes(active) && <CollectionEditor collection={active} data={tournament} save={save} />}</main></div>;
+  return <div className="admin-app"><aside className="admin-sidebar"><button className="admin-brand" onClick={() => go('/')}><img src={logo} alt="" /><span>TOURNAMENT<br /><em>DESK</em></span></button><div className="admin-profile"><span>{session.email?.slice(0, 1).toUpperCase()}</span><div><strong>{session.email}</strong><small>{isCloudEnabled ? 'Secure cloud session' : 'Local preview mode'}</small></div></div><nav>{adminSections.map(([key, label, Icon]) => <button className={active === key ? 'active' : ''} key={key} onClick={() => setActive(key)}><Icon size={17} />{label}</button>)}</nav><div className="admin-sidebar-footer"><button onClick={() => go('/')}><ChevronLeft size={16} /> Public website</button><button onClick={exit}><LogOut size={16} /> Sign out</button></div></aside><main className="admin-main"><Toast notice={notice} dismiss={() => setNotice(null)} /><AdminTopbar active={active} tournament={tournament} go={go} />{active === 'dashboard' && <AdminDashboard tournament={tournament} setActive={setActive} />}{active === 'live' && <LiveMatchController tournament={tournament} save={save} />}{active === 'settings' && <SettingsEditor data={tournament} save={save} />}{['teams', 'fixtures', 'standings', 'champions', 'contacts', 'dignitaries', 'messages', 'registrations'].includes(active) && <CollectionEditor collection={active} data={tournament} save={save} />}</main></div>;
+}
+
+function LiveMatchController({ tournament, save }) {
+  const fixtures = tournament.fixtures || [];
+  const liveMatch = useMemo(() => fixtures.find(f => f.status === 'live'), [fixtures]);
+  const [selectedId, setSelectedId] = useState(liveMatch?.id || (fixtures[0]?.id || ''));
+  const [saving, setSaving] = useState(false);
+
+  const selectedMatch = useMemo(() => fixtures.find(f => f.id === selectedId) || null, [fixtures, selectedId]);
+  const [draft, setDraft] = useState(selectedMatch || {});
+
+  useEffect(() => {
+    if (selectedMatch) setDraft(selectedMatch);
+    else setDraft({});
+  }, [selectedMatch]);
+
+  const updateMatchState = async (updatedFields) => {
+    if (!selectedId) return;
+    setSaving(true);
+    try {
+      const nextMatch = { ...draft, ...updatedFields };
+      setDraft(nextMatch);
+      const nextFixtures = fixtures.map(f => {
+        if (f.id === selectedId) return nextMatch;
+        if (updatedFields.status === 'live' && f.status === 'live') return { ...f, status: 'scheduled' };
+        return f;
+      });
+      await save({ ...tournament, fixtures: nextFixtures });
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const adjustScore = (teamKey, delta) => {
+    const currentScore = Number(draft[teamKey] || 0);
+    const newScore = Math.max(0, currentScore + delta);
+    updateMatchState({ [teamKey]: newScore });
+  };
+
+  const setPresetMinute = (minStr) => {
+    updateMatchState({ minute: minStr });
+  };
+
+  const setStatus = (statusStr) => {
+    const updates = { status: statusStr };
+    if (statusStr === 'live' && !draft.minute) updates.minute = "1'";
+    if (statusStr === 'completed') updates.minute = 'FT';
+    updateMatchState(updates);
+  };
+
+  const addEvent = (eventObj) => {
+    const currentEvents = Array.isArray(draft.events) ? draft.events : [];
+    const nextEvents = [...currentEvents, { ...eventObj, id: makeId('event') }];
+    updateMatchState({ events: nextEvents });
+  };
+
+  const removeEvent = (eventId) => {
+    const currentEvents = Array.isArray(draft.events) ? draft.events : [];
+    const nextEvents = currentEvents.filter(e => e.id !== eventId);
+    updateMatchState({ events: nextEvents });
+  };
+
+  return (
+    <div className="admin-content live-controller-shell">
+      <section className="live-controller-header">
+        <div>
+          <span className="live-kicker"><Radio size={14} /> DEDICATED LIVE MATCHDAY CONSOLE</span>
+          <h2>PRO MATCH CONTROL CENTRE</h2>
+          <p>Control live scores, minute clock, goal ticker commentary, and cards pitch-side with instant public sync.</p>
+        </div>
+        {draft.status === 'live' ? (
+          <div className="live-status-pill-big live-active">
+            <span className="live-dot" /> LIVE ON AIR ({draft.minute || 'LIVE'})
+          </div>
+        ) : (
+          <div className="live-status-pill-big">STANDBY / NO LIVE MATCH</div>
+        )}
+      </section>
+
+      <div className="live-match-selector-bar">
+        <label>Select Match to Control Pitch-Side:
+          <select value={selectedId} onChange={e => setSelectedId(e.target.value)}>
+            <option value="">-- Choose a Fixture --</option>
+            {fixtures.map(f => (
+              <option key={f.id} value={f.id}>
+                {f.home || 'Home'} vs {f.away || 'Away'} ({f.stage || 'Match'} - {f.date || 'TBA'}) {f.status === 'live' ? '🔴 LIVE' : f.status === 'completed' ? '🏁 FT' : ''}
+              </option>
+            ))}
+          </select>
+        </label>
+        {fixtures.length === 0 && <p style={{ color: '#c46a5a', fontSize: '12px', margin: '8px 0 0' }}>No fixtures available yet. Add fixtures in the "Fixtures" tab first.</p>}
+      </div>
+
+      {selectedMatch ? (
+        <div className="live-control-dashboard">
+          <div className="live-action-buttons-row">
+            <button className={`status-btn live-btn ${draft.status === 'live' ? 'active' : ''}`} onClick={() => setStatus('live')} disabled={saving}>
+              <Play size={16} /> START / RESUME LIVE MATCH
+            </button>
+            <button className={`status-btn pause-btn ${draft.minute === 'HT' ? 'active' : ''}`} onClick={() => setPresetMinute('HT')} disabled={saving}>
+              <Pause size={16} /> HALF-TIME (HT)
+            </button>
+            <button className={`status-btn ft-btn ${draft.status === 'completed' ? 'active' : ''}`} onClick={() => setStatus('completed')} disabled={saving}>
+              <Square size={16} /> FULL-TIME (END MATCH)
+            </button>
+          </div>
+
+          <div className="live-scoreboard-console">
+            <div className="scoreboard-team-box home-box">
+              <span className="team-role-tag">HOME TEAM</span>
+              <h3>{draft.home || 'Home Team'}</h3>
+              <div className="score-big">{draft.homeScore ?? 0}</div>
+              <div className="score-ctrl-btns">
+                <button onClick={() => adjustScore('homeScore', 1)}>+1 GOAL ⚽</button>
+                <button onClick={() => adjustScore('homeScore', -1)}>-1 GOAL</button>
+              </div>
+            </div>
+
+            <div className="scoreboard-center-box">
+              <span className="vs-badge">VS</span>
+              <div className="clock-input-box">
+                <small>MATCH MINUTE</small>
+                <input type="text" value={draft.minute || ''} onChange={e => updateMatchState({ minute: e.target.value })} placeholder="e.g. 64', HT, 90+2'" />
+              </div>
+              <div className="minute-presets">
+                {["1'", "15'", "30'", "45'", "HT", "46'", "60'", "75'", "90'", "FT"].map(m => (
+                  <button key={m} className={draft.minute === m ? 'active' : ''} onClick={() => setPresetMinute(m)}>{m}</button>
+                ))}
+              </div>
+            </div>
+
+            <div className="scoreboard-team-box away-box">
+              <span className="team-role-tag">AWAY TEAM</span>
+              <h3>{draft.away || 'Away Team'}</h3>
+              <div className="score-big">{draft.awayScore ?? 0}</div>
+              <div className="score-ctrl-btns">
+                <button onClick={() => adjustScore('awayScore', 1)}>+1 GOAL ⚽</button>
+                <button onClick={() => adjustScore('awayScore', -1)}>-1 GOAL</button>
+              </div>
+            </div>
+          </div>
+
+          <div className="live-commentary-studio">
+            <h3><Zap size={18} /> LIVE COMMENTARY TICKER STUDIO</h3>
+            <p>Publish instant pitch-side commentary updates shown across the public website ticker.</p>
+            <div className="commentary-input-wrap">
+              <textarea rows="3" value={draft.liveNote || ''} onChange={e => setDraft({ ...draft, liveNote: e.target.value })} placeholder="e.g. BBIT Strikers score from a magnificent free kick outside the box!" />
+              <button className="save-button commentary-pub-btn" onClick={() => updateMatchState({ liveNote: draft.liveNote })} disabled={saving}>
+                <Radio size={16} /> Broadcast Ticker Update
+              </button>
+            </div>
+            <div className="commentary-presets">
+              <small>QUICK PRESETS:</small>
+              {[
+                "KICK-OFF! Match is underway at BBIT Ground.",
+                `GOAL FOR ${draft.home || 'HOME'}! Outstanding strike!`,
+                `GOAL FOR ${draft.away || 'AWAY'}! What a finish!`,
+                "GREAT SAVE by the goalkeeper to keep it level!",
+                "YELLOW CARD issued after a tactical foul.",
+                "HALF-TIME at BBIT Ground. Teams heading to lockers.",
+                "SECOND HALF IS UNDERWAY!",
+                "FULL TIME! Match concludes after intense battle!"
+              ].map((preset, idx) => (
+                <button key={idx} onClick={() => updateMatchState({ liveNote: preset })}>{preset}</button>
+              ))}
+            </div>
+          </div>
+
+          <LiveMatchEventsLogger draft={draft} addEvent={addEvent} removeEvent={removeEvent} />
+
+          <div className="live-public-preview-monitor">
+            <small>PUBLIC WEBSITE LIVE PREVIEW MONITOR (WHAT VISITORS SEE NOW)</small>
+            <div className="live-matchday-banner preview-banner">
+              <div className="live-badge-wrap">
+                <span className="live-dot" />
+                <span>LIVE MATCH</span>
+              </div>
+              <div className="live-banner-content">
+                <div className="live-teams-display">
+                  <span>{draft.home || 'Home'}</span>
+                  <span className="live-score-pill">{draft.homeScore ?? 0} - {draft.awayScore ?? 0}</span>
+                  <span>{draft.away || 'Away'}</span>
+                  {draft.minute && <span className="live-minute-tag">{draft.minute}</span>}
+                </div>
+                {draft.liveNote && (
+                  <div className="live-ticker-text">
+                    <CircleAlert size={14} />
+                    <span>{draft.liveNote}</span>
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+        </div>
+      ) : (
+        <div className="no-match-selected-placeholder">
+          <Radio size={48} />
+          <h3>Select a Match to Open Pitch-Side Controller</h3>
+          <p>Choose any scheduled fixture from the dropdown above to manage scores, goals, and live ticker commentary.</p>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function LiveMatchEventsLogger({ draft, addEvent, removeEvent }) {
+  const [min, setMin] = useState('');
+  const [type, setType] = useState('goal');
+  const [team, setTeam] = useState('home');
+  const [player, setPlayer] = useState('');
+
+  const submitEvent = (e) => {
+    e.preventDefault();
+    if (!player) return;
+    addEvent({ minute: min || "•", type, team, player });
+    setMin('');
+    setPlayer('');
+  };
+
+  const events = Array.isArray(draft.events) ? draft.events : [];
+
+  return (
+    <div className="live-events-logger-card">
+      <h3>⚽ LOG MATCH EVENT (GOALS & CARDS)</h3>
+      <form onSubmit={submitEvent} className="events-logger-form">
+        <label>Minute
+          <input type="text" placeholder="e.g. 68'" value={min} onChange={e => setMin(e.target.value)} />
+        </label>
+        <label>Event Type
+          <select value={type} onChange={e => setType(e.target.value)}>
+            <option value="goal">⚽ Goal</option>
+            <option value="yellow_card">🨨 Yellow Card</option>
+            <option value="red_card">🨩 Red Card</option>
+          </select>
+        </label>
+        <label>Team
+          <select value={team} onChange={e => setTeam(e.target.value)}>
+            <option value="home">Home ({draft.home || 'Home'})</option>
+            <option value="away">Away ({draft.away || 'Away'})</option>
+          </select>
+        </label>
+        <label>Player Name
+          <input type="text" required placeholder="e.g. Rahul Sharma" value={player} onChange={e => setPlayer(e.target.value)} />
+        </label>
+        <button type="submit" className="primary-button">+ Log Event</button>
+      </form>
+
+      {events.length > 0 && (
+        <div className="logged-events-list">
+          <small>LOGGED MATCH TIMELINE EVENTS ({events.length}):</small>
+          <div className="events-chips-grid">
+            {events.map((ev) => (
+              <div className={`event-chip-item ${ev.team === 'away' ? 'away-chip' : ''}`} key={ev.id}>
+                <strong>{ev.minute}</strong>
+                <span>{ev.type === 'goal' ? '⚽' : ev.type === 'yellow_card' ? '🨨' : '🨩'} {ev.player} ({ev.team === 'home' ? draft.home || 'Home' : draft.away || 'Away'})</span>
+                <button type="button" onClick={() => removeEvent(ev.id)}>×</button>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+    </div>
+  );
 }
 
 function AdminLogin({ onSuccess, go }) { const [email, setEmail] = useState(''); const [password, setPassword] = useState(''); const [error, setError] = useState(''); const [busy, setBusy] = useState(false); const submit = async (event) => { event.preventDefault(); setBusy(true); setError(''); try { onSuccess(await signIn(email, password)); } catch (err) { setError(err.message); } finally { setBusy(false); } }; return <div className="admin-login"><div className="admin-login-panel"><button className="back-home" onClick={() => go('/')}><ChevronLeft size={16} /> Public website</button><img src={logo} alt="" /><span className="admin-kicker">GULABI DEVI MEMORIAL CUP</span><h1>Tournament<br /><em>Desk</em></h1><p>{isCloudEnabled ? 'Sign in with your authorised Supabase admin account.' : 'Local preview mode is active. This is for development only; add the Supabase environment variables before production deployment.'}</p><form onSubmit={submit}><label>Email<input type="email" value={email} onChange={(event) => setEmail(event.target.value)} placeholder="admin@example.com" required /></label><label>Password<input type="password" value={password} onChange={(event) => setPassword(event.target.value)} placeholder="Your password" required /></label>{error && <div className="form-error">{error}</div>}<button className="admin-submit" disabled={busy}>{busy ? 'Signing in...' : isCloudEnabled ? 'Sign in securely' : 'Open local admin'} <ArrowUpRight size={16} /></button></form><div className="admin-login-mode">{isCloudEnabled ? <><Cloud size={15} /> Cloud data connected</> : <><CircleAlert size={15} /> Local browser storage only</>}</div></div></div>; }

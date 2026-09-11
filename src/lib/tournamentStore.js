@@ -111,13 +111,15 @@ export async function loadTournament() {
 }
 
 export async function saveTournament(data, session) {
-  if (!isCloudEnabled) return writeLocal(data);
+  const value = { ...normalise(data), updatedAt: new Date().toISOString() };
+  notifyLocalBroadcast(value);
+
+  if (!isCloudEnabled) return writeLocal(value);
   if (!session?.accessToken) {
     // Fallback to local storage when no valid cloud session token
     console.warn('Admin session token missing; saving locally instead of cloud.');
-    return writeLocal(data);
+    return writeLocal(value);
   }
-  const value = { ...normalise(data), updatedAt: new Date().toISOString() };
   await request('/rest/v1/tournament_content?on_conflict=id', {
     method: 'POST',
     headers: {
@@ -127,6 +129,101 @@ export async function saveTournament(data, session) {
     body: JSON.stringify({ id: 'main', content: value, updated_at: value.updatedAt })
   }, session.accessToken);
   return value;
+}
+
+const realtimeChannel = typeof BroadcastChannel !== 'undefined' ? new BroadcastChannel('gulabi_devi_realtime') : null;
+
+export function notifyLocalBroadcast(content) {
+  if (realtimeChannel) {
+    try {
+      realtimeChannel.postMessage({ type: 'TOURNAMENT_UPDATED', content });
+    } catch (e) {
+      console.warn('BroadcastChannel postMessage failed:', e);
+    }
+  }
+}
+
+export function subscribeToRealtime(onUpdate) {
+  const handleBroadcast = (event) => {
+    if (event.data?.type === 'TOURNAMENT_UPDATED' && event.data?.content) {
+      onUpdate(normalise(event.data.content));
+    }
+  };
+
+  if (realtimeChannel) {
+    realtimeChannel.addEventListener('message', handleBroadcast);
+  }
+
+  let socket = null;
+  let hbInterval = null;
+  let reconnectTimeout = null;
+
+  if (isCloudEnabled) {
+    const wsUrl = cloud.url.replace(/^http/, 'ws') + `/realtime/v1/websocket?apikey=${cloud.anonKey}&vsn=1.0.0`;
+
+    const connect = () => {
+      try {
+        socket = new WebSocket(wsUrl);
+
+        socket.onopen = () => {
+          const joinMsg = {
+            topic: 'realtime:public:tournament_content',
+            event: 'phx_join',
+            payload: {
+              config: {
+                postgres_changes: [
+                  { event: '*', schema: 'public', table: 'tournament_content' }
+                ]
+              }
+            },
+            ref: '1'
+          };
+          socket.send(JSON.stringify(joinMsg));
+
+          hbInterval = setInterval(() => {
+            if (socket?.readyState === WebSocket.OPEN) {
+              socket.send(JSON.stringify({ topic: 'phoenix', event: 'heartbeat', payload: {}, ref: 'hb' }));
+            }
+          }, 25000);
+        };
+
+        socket.onmessage = (e) => {
+          try {
+            const msg = JSON.parse(e.data);
+            if (msg.event === 'postgres_changes' || msg.event === 'UPDATE' || msg.event === 'INSERT') {
+              const record = msg.payload?.data || msg.payload?.record || msg.payload?.new;
+              if (record?.content) {
+                onUpdate(normalise(record.content));
+              } else {
+                loadTournament().then(data => onUpdate(data)).catch(() => {});
+              }
+            }
+          } catch {}
+        };
+
+        socket.onclose = () => {
+          if (hbInterval) clearInterval(hbInterval);
+          reconnectTimeout = setTimeout(connect, 5000);
+        };
+
+        socket.onerror = () => {
+          try { socket?.close(); } catch {}
+        };
+      } catch {}
+    };
+
+    connect();
+  }
+
+  return () => {
+    if (realtimeChannel) realtimeChannel.removeEventListener('message', handleBroadcast);
+    if (hbInterval) clearInterval(hbInterval);
+    if (reconnectTimeout) clearTimeout(reconnectTimeout);
+    if (socket) {
+      socket.onclose = null;
+      try { socket.close(); } catch {}
+    }
+  };
 }
 
 export async function submitPublicRegistration(registration) {
