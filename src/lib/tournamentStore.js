@@ -56,6 +56,7 @@ export const defaultTournament = {
     { id: 'contact-sumit', name: 'Sumit', role: 'Tournament Convener', phone: '9609662550' },
     { id: 'contact-deba', name: 'Student Coordinator', phone: '9547069495' }
   ],
+  registrations: [],
   updatedAt: null
 };
 
@@ -72,7 +73,8 @@ function normalise(data) {
     fixtures: Array.isArray(source.fixtures) && source.fixtures.length ? source.fixtures : clone(defaultTournament.fixtures),
     standings: Array.isArray(source.standings) && source.standings.length ? source.standings : clone(defaultTournament.standings),
     champions: Array.isArray(source.champions) && source.champions.length ? source.champions : clone(defaultTournament.champions),
-    contacts: Array.isArray(source.contacts) && source.contacts.length ? source.contacts : clone(defaultTournament.contacts)
+    contacts: Array.isArray(source.contacts) && source.contacts.length ? source.contacts : clone(defaultTournament.contacts),
+    registrations: Array.isArray(source.registrations) && source.registrations.length ? source.registrations : clone(defaultTournament.registrations)
   };
 }
 
