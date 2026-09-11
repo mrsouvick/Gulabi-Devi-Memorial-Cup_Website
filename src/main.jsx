@@ -5,7 +5,7 @@ import {
   Cloud, ExternalLink, History, LayoutDashboard, LockKeyhole, LogOut, MapPin, Menu,
   Pencil, Phone, Plus, Save, Settings, ShieldCheck, Table2, Trophy, Trash2, Users, X
 } from 'lucide-react';
-import { defaultTournament, getSession, isCloudEnabled, loadTournament, makeId, saveTournament, signIn, signOut } from './lib/tournamentStore';
+import { defaultTournament, getSession, isCloudEnabled, loadTournament, makeId, saveTournament, signIn, signOut, submitPublicRegistration, submitPublicMessage } from './lib/tournamentStore';
 import './styles.css';
 
 const logo = '/assets/tournament-logo.jpg';
@@ -14,11 +14,11 @@ const heroImage = '/assets/football-hero-background.png';
 const poster = '/assets/tournament-poster-final.png';
 
 const dignitaries = [
-  { title: 'CHAIRMAN', role: 'CHIEF PATRON', image: '/assets/dignitaries/chairman.jpg' },
-  { title: 'PRINCIPAL', role: 'PATRON & MENTOR', image: '/assets/dignitaries/principal.jpg' },
-  { title: 'DEAN OF STUDENTS', role: 'ADVISORY HEAD', image: '/assets/dignitaries/dean.jpg' },
-  { title: 'REGISTRAR', role: 'EXECUTIVE CONVENOR', image: '/assets/dignitaries/registrar.jpg' },
-  { title: 'DEPUTY REGISTRAR', role: 'CO-CONVENOR', image: '/assets/dignitaries/deputy-registrar.jpg' }
+  { id: 'dig-1', title: 'CHAIRMAN', role: 'CHIEF PATRON', image: '/assets/dignitaries/chairman.jpg' },
+  { id: 'dig-2', title: 'PRINCIPAL', role: 'PATRON & MENTOR', image: '/assets/dignitaries/principal.jpg' },
+  { id: 'dig-3', title: 'DEAN OF STUDENTS', role: 'ADVISORY HEAD', image: '/assets/dignitaries/dean.jpg' },
+  { id: 'dig-4', title: 'REGISTRAR', role: 'EXECUTIVE CONVENOR', image: '/assets/dignitaries/registrar.jpg' },
+  { id: 'dig-5', title: 'DEPUTY REGISTRAR', role: 'CO-CONVENOR', image: '/assets/dignitaries/deputy-registrar.jpg' }
 ];
 
 const publicRoutes = [
@@ -26,9 +26,10 @@ const publicRoutes = [
   ['Bracket', '/bracket'], ['History', '/history'], ['Venue', '/venue'], ['Contact', '/contact']
 ];
 
-  const adminSections = [
+const adminSections = [
   ['dashboard', 'Overview', LayoutDashboard], ['settings', 'Tournament', Settings], ['teams', 'Teams', Users],
-  ['fixtures', 'Fixtures', CalendarDays], ['standings', 'Standings', Table2], ['champions', 'History', History], ['contacts', 'Contacts', Phone], ['messages', 'Messages', Phone], ['registrations', 'Registrations', Users]
+  ['fixtures', 'Fixtures', CalendarDays], ['standings', 'Standings', Table2], ['champions', 'History', History],
+  ['contacts', 'Contacts', Phone], ['dignitaries', 'Patrons', Users], ['messages', 'Messages', Phone], ['registrations', 'Registrations', Users]
 ];
 
 function routeFromLocation() {
@@ -117,6 +118,7 @@ function PublicSite({ tournament, route, go, notice, setNotice, save }) {
       <button className="public-menu" onClick={() => setMenuOpen(!menuOpen)} aria-expanded={menuOpen} aria-label="Open navigation">{menuOpen ? <X /> : <Menu />}</button>
     </header>
     {menuOpen && <div className="public-mobile-nav">{publicRoutes.map(([label, target]) => <button key={target} onClick={() => navigate(target)}>{label}<ChevronRight size={17} /></button>)}<button onClick={() => navigate('/register')}>Register your team <ArrowUpRight size={17} /></button></div>}
+    <LiveMatchdayBanner fixtures={tournament.fixtures} go={navigate} />
     <main id="main-content">
       <Toast notice={notice} dismiss={() => setNotice(null)} />
       {route === '/' && <Home tournament={tournament} go={navigate} />}
@@ -126,15 +128,49 @@ function PublicSite({ tournament, route, go, notice, setNotice, save }) {
       {route === '/bracket' && <BracketPage fixtures={tournament.fixtures} />}
       {route === '/history' && <HistoryPage champions={tournament.champions} />}
       {route === '/venue' && <VenuePage settings={settings} />}
-      {route === '/register' && <RegisterPage settings={settings} contacts={tournament.contacts} registrations={tournament.registrations} save={save} go={navigate} />}
-            {route === '/contact' && <ContactPage contacts={tournament.contacts} settings={settings} tournament={tournament} save={save} />}
+      {route === '/register' && <RegisterPage tournament={tournament} settings={settings} contacts={tournament.contacts} registrations={tournament.registrations} save={save} go={navigate} />}
+      {route === '/contact' && <ContactPage tournament={tournament} contacts={tournament.contacts} settings={settings} save={save} />}
     </main>
     <PublicFooter settings={settings} go={navigate} />
   </div>;
 }
 
+function LiveMatchdayBanner({ fixtures = [], go }) {
+  const liveFixture = useMemo(() => fixtures.find(f => f.status === 'live'), [fixtures]);
+  if (!liveFixture) return null;
+
+  return (
+    <div className="live-matchday-banner">
+      <div className="live-badge-wrap">
+        <span className="live-dot" />
+        <span>LIVE MATCH</span>
+      </div>
+      <div className="live-banner-content">
+        <div className="live-teams-display">
+          <span>{liveFixture.home}</span>
+          <span className="live-score-pill">{liveFixture.homeScore ?? 0} - {liveFixture.awayScore ?? 0}</span>
+          <span>{liveFixture.away}</span>
+          {liveFixture.minute && <span className="live-minute-tag">{liveFixture.minute}</span>}
+        </div>
+        {liveFixture.liveNote && (
+          <div className="live-ticker-text">
+            <CircleAlert size={14} />
+            <span>{liveFixture.liveNote}</span>
+          </div>
+        )}
+      </div>
+      <div className="live-banner-actions">
+        <button className="live-action-btn" onClick={() => go('/fixtures')}>
+          Match Center <ArrowUpRight size={14} />
+        </button>
+      </div>
+    </div>
+  );
+}
+
 function Home({ tournament, go }) {
   const { settings, fixtures, teams } = tournament;
+  const digns = tournament.dignitaries && tournament.dignitaries.length ? tournament.dignitaries : dignitaries;
   return <>
     <section className="home-hero">
       <div className="home-hero-image" style={{ backgroundImage: `url(${heroImage})` }} />
@@ -153,10 +189,10 @@ function Home({ tournament, go }) {
         <p>Under the visionary guidance and leadership of Budge Budge Institute of Technology (BBIT) management and administration.</p>
       </div>
       <div className="dignitaries-grid">
-        {dignitaries.map((item, index) => (
-          <article className="dignitary-card" key={index}>
+        {digns.map((item, index) => (
+          <article className="dignitary-card" key={item.id || index}>
             <div className="dignitary-image-wrap">
-              <img src={item.image} alt={item.title} />
+              <img src={item.image || '/assets/dignitaries/chairman.jpg'} alt={item.title} />
               <span className="dignitary-badge">{item.role}</span>
             </div>
             <div className="dignitary-body">
@@ -242,7 +278,7 @@ function FixturesPage({ fixtures, go }) {
 
   return (
     <>
-      <PageHero kicker="MATCH CENTRE" title="FIXTURES & RESULTS" text="All match timings, live scores, results, and venue information in one place." />
+      <PageHero kicker="MATCH CENTRE" title="FIXTURES & RESULTS" text="All match timings, live scores, results, commentary, and match event timelines in one place." />
       <section className="content-shell">
         <div className="page-toolbar">
           <div className="filter-tabs">
@@ -253,33 +289,60 @@ function FixturesPage({ fixtures, go }) {
         </div>
         {filtered.length ? (
           <div className="fixture-grid-rich">
-            {filtered.map(fixture => (
-              <article className="fixture-card-rich" key={fixture.id}>
-                <div className="fixture-card-head">
-                  <span className="fixture-stage-badge">{fixture.stage || 'Match'}</span>
-                  <span className={`fixture-status-pill ${fixture.status || 'scheduled'}`}>{fixture.status === 'completed' ? 'FINAL SCORE' : fixture.status === 'live' ? '● LIVE MATCH' : 'SCHEDULED'}</span>
-                </div>
-                <div className="fixture-card-teams">
-                  <div className="team-side home-side">
-                    <strong>{fixture.home}</strong>
+            {filtered.map(fixture => {
+              const isLive = fixture.status === 'live';
+              const isCompleted = fixture.status === 'completed';
+              return (
+                <article className={`fixture-card-rich ${isLive ? 'is-live' : ''}`} key={fixture.id}>
+                  <div className="fixture-card-head">
+                    <span className="fixture-stage-badge">{fixture.stage || 'Match'}</span>
+                    <span className={`fixture-status-pill ${fixture.status || 'scheduled'}`}>
+                      {isCompleted ? 'FINAL SCORE' : isLive ? `● LIVE MATCH ${fixture.minute ? `(${fixture.minute})` : ''}` : 'SCHEDULED'}
+                    </span>
                   </div>
-                  <div className="score-box">
-                    {fixture.status === 'completed' ? (
-                      <span className="final-score">{fixture.homeScore ?? 0} - {fixture.awayScore ?? 0}</span>
-                    ) : (
-                      <span className="vs-tag">VS</span>
-                    )}
+                  <div className="fixture-card-teams">
+                    <div className="team-side home-side">
+                      <strong>{fixture.home}</strong>
+                    </div>
+                    <div className="score-box">
+                      {isCompleted || isLive ? (
+                        <span className="final-score">{fixture.homeScore ?? 0} - {fixture.awayScore ?? 0}</span>
+                      ) : (
+                        <span className="vs-tag">VS</span>
+                      )}
+                    </div>
+                    <div className="team-side away-side">
+                      <strong>{fixture.away}</strong>
+                    </div>
                   </div>
-                  <div className="team-side away-side">
-                    <strong>{fixture.away}</strong>
+                  {fixture.liveNote && (
+                    <div className="live-fixture-ticker-box">
+                      <span>COMMENTARY TICKER:</span>
+                      <p style={{ margin: 0 }}>{fixture.liveNote}</p>
+                    </div>
+                  )}
+                  {Array.isArray(fixture.events) && fixture.events.length > 0 && (
+                    <div className="live-timeline-wrap">
+                      <div className="live-timeline-title"><Trophy size={13} /> MATCH TIMELINE & EVENTS</div>
+                      <div className="live-events-list">
+                        {fixture.events.map((ev, i) => (
+                          <div className={`live-event-item ${ev.team === 'away' ? 'away-event' : ''}`} key={ev.id || i}>
+                            <span className="event-min">{ev.minute || "•"}</span>
+                            <span className="event-icon">{ev.type === 'goal' ? '⚽ Goal' : ev.type === 'yellow_card' ? '🨨 Yellow Card' : '🨩 Red Card'}</span>
+                            <span className="event-player">{ev.player}</span>
+                            <span className="event-team">{ev.team === 'home' ? fixture.home : fixture.away}</span>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                  <div className="fixture-card-foot">
+                    <span><CalendarDays size={13} /> {fixture.date || 'Date TBA'} {fixture.time ? ` @ ${fixture.time}` : ''}</span>
+                    <span><MapPin size={13} /> {fixture.venue || 'BBIT Football Ground'}</span>
                   </div>
-                </div>
-                <div className="fixture-card-foot">
-                  <span><CalendarDays size={13} /> {fixture.date || 'Date TBA'} {fixture.time ? ` @ ${fixture.time}` : ''}</span>
-                  <span><MapPin size={13} /> {fixture.venue || 'BBIT Football Ground'}</span>
-                </div>
-              </article>
-            ))}
+                </article>
+              );
+            })}
           </div>
         ) : (
           <EmptyMessage title="No fixtures published yet." text="Check back soon for the official tournament match draw." icon={<CalendarDays />} />
@@ -345,7 +408,43 @@ function StandingsPage({ standings }) {
   );
 }
 
-function BracketPage({ fixtures }) {
+function BracketPage({ fixtures = [] }) {
+  const qfs = useMemo(() => fixtures.filter(f => (f.stage || '').toLowerCase().includes('quarter') || (f.stage || '').toLowerCase().includes('qf')), [fixtures]);
+  const sfs = useMemo(() => fixtures.filter(f => (f.stage || '').toLowerCase().includes('semi') || (f.stage || '').toLowerCase().includes('sf')), [fixtures]);
+  const finals = useMemo(() => fixtures.filter(f => (f.stage || '').toLowerCase().includes('final') && !(f.stage || '').toLowerCase().includes('semi') && !(f.stage || '').toLowerCase().includes('quarter')), [fixtures]);
+
+  const renderMatchCard = (fixture, defaultLabel, highlight = false, isFinal = false) => {
+    if (!fixture) {
+      return (
+        <div className={`bracket-card-rich ${highlight ? 'highlight' : ''} ${isFinal ? 'championship-card' : ''}`}>
+          <small>{defaultLabel}</small>
+          <div className="bracket-team"><span>Team TBD</span><b>-</b></div>
+          <div className="bracket-team"><span>Team TBD</span><b>-</b></div>
+          {isFinal && <div className="champion-badge"><Trophy size={16} /> TROPHY MATCH</div>}
+        </div>
+      );
+    }
+    const homeScore = fixture.status === 'completed' ? (fixture.homeScore ?? 0) : '-';
+    const awayScore = fixture.status === 'completed' ? (fixture.awayScore ?? 0) : '-';
+    const homeIsWinner = fixture.status === 'completed' && Number(fixture.homeScore) > Number(fixture.awayScore);
+    const awayIsWinner = fixture.status === 'completed' && Number(fixture.awayScore) > Number(fixture.homeScore);
+
+    return (
+      <div className={`bracket-card-rich ${highlight ? 'highlight' : ''} ${isFinal ? 'championship-card' : ''}`}>
+        <small>{fixture.stage || defaultLabel} {fixture.date ? `(${fixture.date})` : ''}</small>
+        <div className={`bracket-team ${homeIsWinner ? 'winner' : ''}`}>
+          <span>{fixture.home || 'Home Team'}</span>
+          <b>{homeScore}</b>
+        </div>
+        <div className={`bracket-team ${awayIsWinner ? 'winner' : ''}`}>
+          <span>{fixture.away || 'Away Team'}</span>
+          <b>{awayScore}</b>
+        </div>
+        {isFinal && <div className="champion-badge"><Trophy size={16} /> {fixture.status === 'completed' ? 'CHAMPION DECIDED' : 'TROPHY MATCH'}</div>}
+      </div>
+    );
+  };
+
   return (
     <>
       <PageHero kicker="ROAD TO THE TROPHY" title="KNOCKOUT BRACKET" text="The tournament progression tree leading to the Gulabi Devi Memorial Cup." />
@@ -353,35 +452,26 @@ function BracketPage({ fixtures }) {
         <div className="bracket-tree-container">
           <div className="bracket-column">
             <div className="bracket-col-title">QUARTER-FINALS</div>
-            <div className="bracket-card-rich">
-              <small>MATCH 01</small>
-              <div className="bracket-team winner"><span>BBIT Strikers</span><b>2</b></div>
-              <div className="bracket-team"><span>IEM Warriors</span><b>0</b></div>
-            </div>
-            <div className="bracket-card-rich">
-              <small>MATCH 02</small>
-              <div className="bracket-team winner"><span>Jadavpur Panthers</span><b>3</b></div>
-              <div className="bracket-team"><span>Calcutta Univ</span><b>1</b></div>
-            </div>
+            {qfs.length ? qfs.map((qf, i) => <React.Fragment key={qf.id || i}>{renderMatchCard(qf, `MATCH 0${i + 1}`, false, false)}</React.Fragment>) : (
+              <>
+                {renderMatchCard(null, 'MATCH 01')}
+                {renderMatchCard(null, 'MATCH 02')}
+              </>
+            )}
           </div>
 
           <div className="bracket-column">
             <div className="bracket-col-title">SEMI-FINALS</div>
-            <div className="bracket-card-rich highlight">
-              <small>SEMI-FINAL 01</small>
-              <div className="bracket-team winner"><span>BBIT Strikers</span><b>1</b></div>
-              <div className="bracket-team"><span>Jadavpur Panthers</span><b>0</b></div>
-            </div>
+            {sfs.length ? sfs.map((sf, i) => <React.Fragment key={sf.id || i}>{renderMatchCard(sf, `SEMI-FINAL 0${i + 1}`, true, false)}</React.Fragment>) : (
+              renderMatchCard(null, 'SEMI-FINAL 01', true, false)
+            )}
           </div>
 
           <div className="bracket-column final-column">
             <div className="bracket-col-title">GRAND FINAL 🏆</div>
-            <div className="bracket-card-rich championship-card">
-              <small>GULABI DEVI CUP FINAL</small>
-              <div className="bracket-team winner"><span>BBIT Strikers</span><b>TBD</b></div>
-              <div className="bracket-team"><span>Heritage Tigers</span><b>TBD</b></div>
-              <div className="champion-badge"><Trophy size={16} /> TROPHY MATCH</div>
-            </div>
+            {finals.length ? renderMatchCard(finals[0], 'GULABI DEVI CUP FINAL', false, true) : (
+              renderMatchCard(null, 'GULABI DEVI CUP FINAL', false, true)
+            )}
           </div>
         </div>
       </section>
@@ -468,15 +558,21 @@ function VenuePage({ settings }) {
   );
 }
 
-function RegisterPage({ settings, contacts, registrations, save, go }) {
+function RegisterPage({ tournament, settings, contacts, registrations, save, go }) {
   const [formData, setFormData] = useState({ college: '', team: '', captain: '', phone: '', email: '', count: '18' });
   const [submitted, setSubmitted] = useState(false);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     const newReg = { id: makeId('registration'), college: formData.college, team: formData.team, captain: formData.captain, phone: formData.phone, email: formData.email, count: formData.count };
-    const updatedRegs = registrations ? [...registrations, newReg] : [newReg];
-    await save({ ...tournament, registrations: updatedRegs });
+    await submitPublicRegistration(newReg);
+    if (tournament && save) {
+      try {
+        await save({ ...tournament, registrations: [...(tournament.registrations || []), newReg] });
+      } catch (err) {
+        // Fallback for non-admin session
+      }
+    }
     setSubmitted(true);
   };
 
@@ -555,8 +651,14 @@ function ContactPage({ contacts, settings, tournament, save }) {
   const handleSend = async (e) => {
     e.preventDefault();
     const newMsg = { id: makeId('message'), name: msgData.name, phone: msgData.phone, message: msgData.message };
-    const updatedMsgs = tournament.messages ? [...tournament.messages, newMsg] : [newMsg];
-    await save({ ...tournament, messages: updatedMsgs });
+    await submitPublicMessage(newMsg);
+    if (tournament && save) {
+      try {
+        await save({ ...tournament, messages: [...(tournament.messages || []), newMsg] });
+      } catch (err) {
+        // Fallback for non-admin session
+      }
+    }
     setSent(true);
   };
 
@@ -624,30 +726,115 @@ function AdminPortal({ tournament, save, go, notice, setNotice }) {
   const [active, setActive] = useState('dashboard');
   if (!session) return <AdminLogin onSuccess={setSession} go={go} />;
   const exit = () => { signOut(); setSession(null); };
-  return <div className="admin-app"><aside className="admin-sidebar"><button className="admin-brand" onClick={() => go('/')}><img src={logo} alt="" /><span>TOURNAMENT<br /><em>DESK</em></span></button><div className="admin-profile"><span>{session.email?.slice(0, 1).toUpperCase()}</span><div><strong>{session.email}</strong><small>{isCloudEnabled ? 'Secure cloud session' : 'Local preview mode'}</small></div></div><nav>{adminSections.map(([key, label, Icon]) => <button className={active === key ? 'active' : ''} key={key} onClick={() => setActive(key)}><Icon size={17} />{label}</button>)}</nav><div className="admin-sidebar-footer"><button onClick={() => go('/')}><ChevronLeft size={16} /> Public website</button><button onClick={exit}><LogOut size={16} /> Sign out</button></div></aside><main className="admin-main"><Toast notice={notice} dismiss={() => setNotice(null)} /><AdminTopbar active={active} tournament={tournament} go={go} />{active === 'dashboard' && <AdminDashboard tournament={tournament} setActive={setActive} />}{active === 'settings' && <SettingsEditor data={tournament} save={save} />}{['teams', 'fixtures', 'standings', 'champions', 'contacts'].includes(active) && <CollectionEditor collection={active} data={tournament} save={save} />}</main></div>;
+  return <div className="admin-app"><aside className="admin-sidebar"><button className="admin-brand" onClick={() => go('/')}><img src={logo} alt="" /><span>TOURNAMENT<br /><em>DESK</em></span></button><div className="admin-profile"><span>{session.email?.slice(0, 1).toUpperCase()}</span><div><strong>{session.email}</strong><small>{isCloudEnabled ? 'Secure cloud session' : 'Local preview mode'}</small></div></div><nav>{adminSections.map(([key, label, Icon]) => <button className={active === key ? 'active' : ''} key={key} onClick={() => setActive(key)}><Icon size={17} />{label}</button>)}</nav><div className="admin-sidebar-footer"><button onClick={() => go('/')}><ChevronLeft size={16} /> Public website</button><button onClick={exit}><LogOut size={16} /> Sign out</button></div></aside><main className="admin-main"><Toast notice={notice} dismiss={() => setNotice(null)} /><AdminTopbar active={active} tournament={tournament} go={go} />{active === 'dashboard' && <AdminDashboard tournament={tournament} setActive={setActive} />}{active === 'settings' && <SettingsEditor data={tournament} save={save} />}{['teams', 'fixtures', 'standings', 'champions', 'contacts', 'dignitaries', 'messages', 'registrations'].includes(active) && <CollectionEditor collection={active} data={tournament} save={save} />}</main></div>;
 }
 
 function AdminLogin({ onSuccess, go }) { const [email, setEmail] = useState(''); const [password, setPassword] = useState(''); const [error, setError] = useState(''); const [busy, setBusy] = useState(false); const submit = async (event) => { event.preventDefault(); setBusy(true); setError(''); try { onSuccess(await signIn(email, password)); } catch (err) { setError(err.message); } finally { setBusy(false); } }; return <div className="admin-login"><div className="admin-login-panel"><button className="back-home" onClick={() => go('/')}><ChevronLeft size={16} /> Public website</button><img src={logo} alt="" /><span className="admin-kicker">GULABI DEVI MEMORIAL CUP</span><h1>Tournament<br /><em>Desk</em></h1><p>{isCloudEnabled ? 'Sign in with your authorised Supabase admin account.' : 'Local preview mode is active. This is for development only; add the Supabase environment variables before production deployment.'}</p><form onSubmit={submit}><label>Email<input type="email" value={email} onChange={(event) => setEmail(event.target.value)} placeholder="admin@example.com" required /></label><label>Password<input type="password" value={password} onChange={(event) => setPassword(event.target.value)} placeholder="Your password" required /></label>{error && <div className="form-error">{error}</div>}<button className="admin-submit" disabled={busy}>{busy ? 'Signing in...' : isCloudEnabled ? 'Sign in securely' : 'Open local admin'} <ArrowUpRight size={16} /></button></form><div className="admin-login-mode">{isCloudEnabled ? <><Cloud size={15} /> Cloud data connected</> : <><CircleAlert size={15} /> Local browser storage only</>}</div></div></div>; }
 
 function AdminTopbar({ active, tournament, go }) { const label = adminSections.find(([key]) => key === active)?.[1] || 'Admin'; return <header className="admin-topbar"><div><span>TOURNAMENT ADMIN</span><h1>{label}</h1></div><div><small>LAST UPDATED</small><strong>{tournament.updatedAt ? new Date(tournament.updatedAt).toLocaleString() : 'Not published yet'}</strong><button onClick={() => go('/')}>View website <ArrowUpRight size={15} /></button></div></header>; }
 
-function AdminDashboard({ tournament, setActive }) { const cards = [['Teams', tournament.teams.length, 'teams', Users], ['Fixtures', tournament.fixtures.length, 'fixtures', CalendarDays], ['Standings', tournament.standings.length, 'standings', Table2], ['History', tournament.champions.length, 'champions', Trophy]]; return <div className="admin-content"><section className="admin-welcome"><div><span>CONTROL CENTRE</span><h2>Everything your<br /><em>tournament needs.</em></h2><p>Publish official information once, and the public website updates instantly.</p></div><ShieldCheck size={55} /></section><div className="admin-stat-grid">{cards.map(([label, value, key, Icon]) => <button key={key} onClick={() => setActive(key)}><Icon size={21} /><strong>{String(value).padStart(2, '0')}</strong><span>{label}</span><ChevronRight size={16} /></button>)}</div><section className="admin-checklist"><div><h3>Publish checklist</h3><p>Keep these details current before sharing the tournament website.</p></div><div>{[['Tournament details', 'settings'], ['Team list', 'teams'], ['Fixtures and results', 'fixtures'], ['League table', 'standings'], ['Tournament contacts', 'contacts']].map(([label, key]) => <button key={key} onClick={() => setActive(key)}><span>{key === 'settings' || tournament[key]?.length ? <CheckCircle2 size={17} /> : <CircleAlert size={17} />}</span>{label}<ChevronRight size={16} /></button>)}</div></section></div>; }
+function AdminDashboard({ tournament, setActive }) {
+  const cards = [
+    ['Teams', tournament.teams?.length || 0, 'teams', Users],
+    ['Fixtures', tournament.fixtures?.length || 0, 'fixtures', CalendarDays],
+    ['Standings', tournament.standings?.length || 0, 'standings', Table2],
+    ['History', tournament.champions?.length || 0, 'champions', Trophy],
+    ['Patrons', tournament.dignitaries?.length || 0, 'dignitaries', Users],
+    ['Messages', tournament.messages?.length || 0, 'messages', Phone],
+    ['Registrations', tournament.registrations?.length || 0, 'registrations', Users]
+  ];
+  return <div className="admin-content"><section className="admin-welcome"><div><span>CONTROL CENTRE</span><h2>Everything your<br /><em>tournament needs.</em></h2><p>Publish official information once, and the public website updates instantly.</p></div><ShieldCheck size={55} /></section><div className="admin-stat-grid">{cards.map(([label, value, key, Icon]) => <button key={key} onClick={() => setActive(key)}><Icon size={21} /><strong>{String(value).padStart(2, '0')}</strong><span>{label}</span><ChevronRight size={16} /></button>)}</div><section className="admin-checklist"><div><h3>Publish checklist</h3><p>Keep these details current before sharing the tournament website.</p></div><div>{[['Tournament details', 'settings'], ['Team list', 'teams'], ['Fixtures and results', 'fixtures'], ['League table', 'standings'], ['Tournament contacts', 'contacts'], ['Patrons & Leaders', 'dignitaries'], ['Received Messages', 'messages'], ['Team Registrations', 'registrations']].map(([label, key]) => <button key={key} onClick={() => setActive(key)}><span>{key === 'settings' || tournament[key]?.length ? <CheckCircle2 size={17} /> : <CircleAlert size={17} />}</span>{label}<ChevronRight size={16} /></button>)}</div></section></div>;
+}
 
 function SettingsEditor({ data, save }) { const [draft, setDraft] = useState(data.settings); const [saving, setSaving] = useState(false); useEffect(() => setDraft(data.settings), [data.settings]); const fields = [['name', 'Tournament name'], ['edition', 'Edition'], ['year', 'Year'], ['organizer', 'Organiser'], ['date', 'Tournament dates'], ['status', 'Public status'], ['entryFee', 'Entry fee (INR)', 'number'], ['format', 'Competition format'], ['matchType', 'Match format'], ['venue', 'Venue'], ['address', 'Address'], ['mapLink', 'Google Maps link'], ['about', 'About the tournament', 'textarea'], ['registrationNote', 'Registration note', 'textarea']]; const submit = async (event) => { event.preventDefault(); setSaving(true); try { await save({ ...data, settings: { ...draft, entryFee: Number(draft.entryFee || 0) } }); } finally { setSaving(false); } }; return <div className="admin-content"><form className="admin-form settings-form" onSubmit={submit}><div className="form-heading"><div><span>PUBLIC WEBSITE CONTENT</span><h2>Tournament settings</h2></div><button className="save-button" disabled={saving}><Save size={16} /> {saving ? 'Saving...' : 'Save changes'}</button></div><div className="form-grid">{fields.map(([key, label, type]) => <FormField key={key} label={label} type={type} value={draft[key] ?? ''} onChange={(value) => setDraft({ ...draft, [key]: value })} />)}<label className="toggle-field"><input type="checkbox" checked={Boolean(draft.registrationOpen)} onChange={(event) => setDraft({ ...draft, registrationOpen: event.target.checked })} /><span /><div><strong>Registration is open</strong><small>Shows an active registration status on the public page.</small></div></label></div></form></div>; }
 
 const collectionConfig = {
   teams: { title: 'Teams', singular: 'team', icon: Users, fields: [['name', 'Team name'], ['shortName', 'Short name'], ['city', 'City / college'], ['group', 'Group']] },
-  fixtures: { title: 'Fixtures', singular: 'fixture', icon: CalendarDays, fields: [['date', 'Match date'], ['time', 'Kick-off time'], ['stage', 'Stage'], ['home', 'Home team'], ['away', 'Away team'], ['venue', 'Venue'], ['status', 'Status'], ['homeScore', 'Home score', 'number'], ['awayScore', 'Away score', 'number']] },
+  fixtures: { title: 'Fixtures & Live Match', singular: 'fixture', icon: CalendarDays, fields: [['date', 'Match date'], ['time', 'Kick-off time'], ['stage', 'Stage'], ['home', 'Home team'], ['away', 'Away team'], ['venue', 'Venue'], ['status', 'Status (scheduled / live / completed)'], ['minute', 'Match minute (e.g. 64\', HT, FT)'], ['liveNote', 'Live Ticker Commentary Note', 'textarea'], ['homeScore', 'Home score', 'number'], ['awayScore', 'Away score', 'number']] },
   standings: { title: 'Standings', singular: 'standing', icon: Table2, fields: [['team', 'Team'], ['played', 'Played', 'number'], ['wins', 'Wins', 'number'], ['draws', 'Draws', 'number'], ['losses', 'Losses', 'number'], ['gf', 'Goals for', 'number'], ['ga', 'Goals against', 'number'], ['points', 'Points', 'number']] },
   champions: { title: 'History', singular: 'champion record', icon: Trophy, fields: [['year', 'Year'], ['winner', 'Champion'], ['runnerUp', 'Runner-up']] },
   contacts: { title: 'Contacts', singular: 'contact', icon: Phone, fields: [['name', 'Name'], ['role', 'Role'], ['phone', 'Phone number']] },
-  messages: { title: 'Messages', singular: 'message', icon: Phone, fields: [['name', 'Name'], ['phone', 'Phone'], ['message', 'Message']] }
+  dignitaries: { title: 'Patrons & Leaders', singular: 'patron record', icon: Users, fields: [['title', 'Title (e.g. CHAIRMAN)'], ['role', 'Role (e.g. CHIEF PATRON)'], ['image', 'Image Path / URL']] },
+  messages: { title: 'Messages', singular: 'message', icon: Phone, fields: [['name', 'Name'], ['phone', 'Phone number'], ['message', 'Message content', 'textarea']] },
+  registrations: { title: 'Registrations', singular: 'registration', icon: Users, fields: [['college', 'College / Institution'], ['team', 'Team name'], ['captain', 'Captain / Coach'], ['phone', 'Contact phone'], ['email', 'Email address'], ['count', 'Squad player count']] }
 };
 
-function CollectionEditor({ collection, data, save }) { const config = collectionConfig[collection]; const [editing, setEditing] = useState(null); const [draft, setDraft] = useState({}); const [saving, setSaving] = useState(false); const items = data[collection] || []; const startNew = () => { setEditing('new'); setDraft({}); }; const startEdit = (item) => { setEditing(item.id); setDraft(item); }; const cancel = () => { setEditing(null); setDraft({}); }; const submit = async (event) => { event.preventDefault(); setSaving(true); try { const record = { ...draft, id: editing === 'new' ? makeId(collection) : editing }; config.fields.forEach(([key,, type]) => { if (type === 'number') record[key] = Number(record[key] || 0); }); const nextItems = editing === 'new' ? [...items, record] : items.map((item) => item.id === editing ? record : item); await save({ ...data, [collection]: nextItems }); cancel(); } finally { setSaving(false); } }; const remove = async (id) => { if (!window.confirm('Remove this item from the public website?')) return; await save({ ...data, [collection]: items.filter((item) => item.id !== id) }); if (editing === id) cancel(); }; const Icon = config.icon; return <div className="admin-content"><section className="collection-heading"><div><span>CONTENT MANAGEMENT</span><h2>{config.title}</h2><p>{items.length} published {items.length === 1 ? config.singular : config.title.toLowerCase()}.</p></div><button className="save-button" onClick={startNew}><Plus size={17} /> Add {config.singular}</button></section><div className="collection-layout"><section className="records-list">{items.length ? items.map((item, index) => <article className={editing === item.id ? 'selected' : ''} key={item.id}><span>{String(index + 1).padStart(2, '0')}</span><div><strong>{recordTitle(collection, item)}</strong><small>{recordSubtitle(collection, item)}</small></div><button onClick={() => startEdit(item)} aria-label="Edit"><Pencil size={16} /></button><button className="delete-record" onClick={() => remove(item.id)} aria-label="Delete"><Trash2 size={16} /></button></article>) : <div className="records-empty"><Icon size={25} /><p>No {config.title.toLowerCase()} published yet.</p><button onClick={startNew}>Create the first one <ArrowUpRight size={15} /></button></div>}</section><section className="record-editor">{editing ? <form className="admin-form" onSubmit={submit}><div className="editor-heading"><div><span>{editing === 'new' ? 'NEW RECORD' : 'EDIT RECORD'}</span><h3>{editing === 'new' ? `Add ${config.singular}` : recordTitle(collection, draft)}</h3></div><button type="button" onClick={cancel}>Cancel</button></div>{config.fields.map(([key, label, type]) => <FormField key={key} label={label} type={type} value={draft[key] ?? ''} onChange={(value) => setDraft({ ...draft, [key]: value })} />)}<button className="save-button form-save" disabled={saving}><Save size={16} /> {saving ? 'Saving...' : 'Save to website'}</button></form> : <div className="editor-placeholder"><Icon size={33} /><h3>Select an item to edit</h3><p>Create a new record or choose one from the list.</p></div>}</section></div></div>; }
+function CollectionEditor({ collection, data, save }) { const config = collectionConfig[collection]; const [editing, setEditing] = useState(null); const [draft, setDraft] = useState({}); const [saving, setSaving] = useState(false); const items = data[collection] || []; const startNew = () => { setEditing('new'); setDraft({}); }; const startEdit = (item) => { setEditing(item.id); setDraft(item); }; const cancel = () => { setEditing(null); setDraft({}); }; const submit = async (event) => { event.preventDefault(); setSaving(true); try { const record = { ...draft, id: editing === 'new' ? makeId(collection) : editing }; config.fields.forEach(([key,, type]) => { if (type === 'number') record[key] = Number(record[key] || 0); }); const nextItems = editing === 'new' ? [...items, record] : items.map((item) => item.id === editing ? record : item); await save({ ...data, [collection]: nextItems }); cancel(); } finally { setSaving(false); } }; const remove = async (id) => { if (!window.confirm('Remove this item from the public website?')) return; await save({ ...data, [collection]: items.filter((item) => item.id !== id) }); if (editing === id) cancel(); }; const Icon = config.icon; return <div className="admin-content"><section className="collection-heading"><div><span>CONTENT MANAGEMENT</span><h2>{config.title}</h2><p>{items.length} published {items.length === 1 ? config.singular : config.title.toLowerCase()}.</p></div><button className="save-button" onClick={startNew}><Plus size={17} /> Add {config.singular}</button></section><div className="collection-layout"><section className="records-list">{items.length ? items.map((item, index) => <article className={editing === item.id ? 'selected' : ''} key={item.id}><span>{String(index + 1).padStart(2, '0')}</span><div><strong>{recordTitle(collection, item)}</strong><small>{recordSubtitle(collection, item)}</small></div><button onClick={() => startEdit(item)} aria-label="Edit"><Pencil size={16} /></button><button className="delete-record" onClick={() => remove(item.id)} aria-label="Delete"><Trash2 size={16} /></button></article>) : <div className="records-empty"><Icon size={25} /><p>No {config.title.toLowerCase()} published yet.</p><button onClick={startNew}>Create the first one <ArrowUpRight size={15} /></button></div>}</section><section className="record-editor">{editing ? <form className="admin-form" onSubmit={submit}><div className="editor-heading"><div><span>{editing === 'new' ? 'NEW RECORD' : 'EDIT RECORD'}</span><h3>{editing === 'new' ? `Add ${config.singular}` : recordTitle(collection, draft)}</h3></div><button type="button" onClick={cancel}>Cancel</button></div>{config.fields.map(([key, label, type]) => <FormField key={key} label={label} type={type} value={draft[key] ?? ''} onChange={(value) => setDraft({ ...draft, [key]: value })} />)}{collection === 'fixtures' && <FixtureEventsEditor draft={draft} setDraft={setDraft} />}<button className="save-button form-save" disabled={saving}><Save size={16} /> {saving ? 'Saving...' : 'Save to website'}</button></form> : <div className="editor-placeholder"><Icon size={33} /><h3>Select an item to edit</h3><p>Create a new record or choose one from the list.</p></div>}</section></div></div>; }
+
+function FixtureEventsEditor({ draft, setDraft }) {
+  const [minute, setMinute] = useState('');
+  const [type, setType] = useState('goal');
+  const [team, setTeam] = useState('home');
+  const [player, setPlayer] = useState('');
+
+  const addEvent = () => {
+    if (!player) return;
+    const newEvent = { id: makeId('event'), minute: minute || '•', type, team, player };
+    const currentEvents = Array.isArray(draft.events) ? draft.events : [];
+    setDraft({ ...draft, events: [...currentEvents, newEvent] });
+    setMinute('');
+    setPlayer('');
+  };
+
+  const removeEvent = (id) => {
+    const currentEvents = Array.isArray(draft.events) ? draft.events : [];
+    setDraft({ ...draft, events: currentEvents.filter(e => e.id !== id) });
+  };
+
+  const events = Array.isArray(draft.events) ? draft.events : [];
+
+  return (
+    <div className="admin-events-editor">
+      <h4>⚡ Live Match Events (Goals & Cards)</h4>
+      <div className="admin-event-input-row">
+        <input type="text" placeholder="Min (e.g. 14')" value={minute} onChange={e => setMinute(e.target.value)} />
+        <select value={type} onChange={e => setType(e.target.value)}>
+          <option value="goal">⚽ Goal</option>
+          <option value="yellow_card">🨨 Yellow Card</option>
+          <option value="red_card">🨩 Red Card</option>
+        </select>
+        <select value={team} onChange={e => setTeam(e.target.value)}>
+          <option value="home">Home ({draft.home || 'Home'})</option>
+          <option value="away">Away ({draft.away || 'Away'})</option>
+        </select>
+        <input type="text" placeholder="Player Name" value={player} onChange={e => setPlayer(e.target.value)} />
+        <button type="button" className="admin-add-event-btn" onClick={addEvent}>+ Add Event</button>
+      </div>
+      {events.length > 0 && (
+        <div className="admin-event-chip-list">
+          {events.map((ev, index) => (
+            <div className="admin-event-chip" key={ev.id || index}>
+              <span>{ev.minute} {ev.type === 'goal' ? '⚽' : ev.type === 'yellow_card' ? '🨨' : '🨩'} {ev.player} ({ev.team === 'home' ? draft.home || 'Home' : draft.away || 'Away'})</span>
+              <button type="button" onClick={() => removeEvent(ev.id)}>×</button>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
 
 function FormField({ label, type = 'text', value, onChange }) { return <label className={type === 'textarea' ? 'wide-field' : ''}>{label}{type === 'textarea' ? <textarea value={value} onChange={(event) => onChange(event.target.value)} rows="4" /> : <input type={type} value={value} onChange={(event) => onChange(event.target.value)} />}</label>; }
-function recordTitle(collection, item) { if (collection === 'fixtures') return `${item.home || 'TBA'} vs ${item.away || 'TBA'}`; if (collection === 'standings') return item.team || 'Unnamed team'; if (collection === 'champions') return item.winner || 'Champion record'; return item.name || 'Untitled record'; }
-function recordSubtitle(collection, item) { if (collection === 'fixtures') return [item.stage, item.date, item.time].filter(Boolean).join(' / ') || 'Match details'; if (collection === 'standings') return `${item.points || 0} points / ${item.played || 0} played`; if (collection === 'champions') return item.year || 'Year TBA'; if (collection === 'teams') return [item.city, item.group].filter(Boolean).join(' / ') || 'Team profile'; return item.role || item.phone || 'Contact details'; }
+
+function recordTitle(collection, item) {
+  if (collection === 'fixtures') return `${item.home || 'TBA'} vs ${item.away || 'TBA'}`;
+  if (collection === 'standings') return item.team || 'Unnamed team';
+  if (collection === 'champions') return item.winner || 'Champion record';
+  if (collection === 'dignitaries') return item.title || 'Patron';
+  if (collection === 'messages') return item.name ? `From: ${item.name}` : 'Contact Message';
+  if (collection === 'registrations') return item.team ? `${item.team} (${item.college || 'College'})` : 'Team Registration';
+  return item.name || 'Untitled record';
+}
+
+function recordSubtitle(collection, item) {
+  if (collection === 'fixtures') return [item.stage, item.date, item.time].filter(Boolean).join(' / ') || 'Match details';
+  if (collection === 'standings') return `${item.points || 0} points / ${item.played || 0} played`;
+  if (collection === 'champions') return item.year || 'Year TBA';
+  if (collection === 'teams') return [item.city, item.group].filter(Boolean).join(' / ') || 'Team profile';
+  if (collection === 'dignitaries') return item.role || 'Patron & Leader';
+  if (collection === 'messages') return [item.phone, item.message].filter(Boolean).join(' - ') || 'Message details';
+  if (collection === 'registrations') return `Captain: ${item.captain || 'N/A'} / Tel: ${item.phone || 'N/A'} / Email: ${item.email || 'N/A'}`;
+  return item.role || item.phone || 'Contact details';
+}
 
 createRoot(document.getElementById('root')).render(<App />);

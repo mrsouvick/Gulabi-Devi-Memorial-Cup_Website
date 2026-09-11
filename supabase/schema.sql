@@ -42,5 +42,48 @@ insert into public.tournament_content (id, content)
 values ('main', '{}'::jsonb)
 on conflict (id) do nothing;
 
+-- Public submission procedures for registrations & contact messages
+create or replace function public.submit_tournament_registration(p_reg jsonb)
+returns void
+language plpgsql
+security definer
+set search_path = public
+as $$
+begin
+  update public.tournament_content
+  set content = jsonb_set(
+    content,
+    '{registrations}',
+    coalesce(content->'registrations', '[]'::jsonb) || jsonb_build_array(p_reg),
+    true
+  ),
+  updated_at = timezone('utc', now())
+  where id = 'main';
+end;
+$$;
+
+grant execute on function public.submit_tournament_registration(jsonb) to anon, authenticated;
+
+create or replace function public.submit_tournament_message(p_msg jsonb)
+returns void
+language plpgsql
+security definer
+set search_path = public
+as $$
+begin
+  update public.tournament_content
+  set content = jsonb_set(
+    content,
+    '{messages}',
+    coalesce(content->'messages', '[]'::jsonb) || jsonb_build_array(p_msg),
+    true
+  ),
+  updated_at = timezone('utc', now())
+  where id = 'main';
+end;
+$$;
+
+grant execute on function public.submit_tournament_message(jsonb) to anon, authenticated;
+
 -- After creating the intended administrator in Supabase Authentication, run:
 -- insert into public.tournament_admins (user_id) values ('AUTH-USER-UUID-HERE');
