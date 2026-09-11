@@ -118,7 +118,11 @@ export async function loadTournament() {
 
 export async function saveTournament(data, session) {
   if (!isCloudEnabled) return writeLocal(data);
-  if (!session?.accessToken) throw new Error('Your secure admin session has expired. Please sign in again.');
+  if (!session?.accessToken) {
+    // Fallback to local storage when no valid cloud session token
+    console.warn('Admin session token missing; saving locally instead of cloud.');
+    return writeLocal(data);
+  }
   const value = { ...normalise(data), updatedAt: new Date().toISOString() };
   await request('/rest/v1/tournament_content?on_conflict=id', {
     method: 'POST',
