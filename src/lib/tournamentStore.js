@@ -227,39 +227,57 @@ export function subscribeToRealtime(onUpdate) {
 }
 
 export async function submitPublicRegistration(registration) {
+  const regWithTime = {
+    ...registration,
+    submittedAt: registration.submittedAt || new Date().toLocaleString('en-IN', { dateStyle: 'short', timeStyle: 'short' })
+  };
   if (isCloudEnabled) {
     try {
       await request('/rest/v1/rpc/submit_tournament_registration', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ p_reg: registration })
+        body: JSON.stringify({ p_reg: regWithTime })
       });
+      const current = readLocal();
+      const updatedRegs = [regWithTime, ...(current.registrations || []).filter(r => r.id !== regWithTime.id)];
+      const updated = writeLocal({ ...current, registrations: updatedRegs });
+      notifyLocalBroadcast(updated);
       return;
     } catch (e) {
       console.warn('RPC submit registration failed, using local storage fallback:', e);
     }
   }
   const current = readLocal();
-  const updatedRegs = [...(current.registrations || []), registration];
-  writeLocal({ ...current, registrations: updatedRegs });
+  const updatedRegs = [regWithTime, ...(current.registrations || []).filter(r => r.id !== regWithTime.id)];
+  const updated = writeLocal({ ...current, registrations: updatedRegs });
+  notifyLocalBroadcast(updated);
 }
 
 export async function submitPublicMessage(message) {
+  const msgWithTime = {
+    ...message,
+    submittedAt: message.submittedAt || new Date().toLocaleString('en-IN', { dateStyle: 'short', timeStyle: 'short' })
+  };
   if (isCloudEnabled) {
     try {
       await request('/rest/v1/rpc/submit_tournament_message', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ p_msg: message })
+        body: JSON.stringify({ p_msg: msgWithTime })
       });
+      const current = readLocal();
+      const updatedMsgs = [msgWithTime, ...(current.messages || []).filter(m => m.id !== msgWithTime.id)];
+      const updated = writeLocal({ ...current, messages: updatedMsgs });
+      notifyLocalBroadcast(updated);
       return;
     } catch (e) {
       console.warn('RPC submit message failed, using local storage fallback:', e);
     }
   }
   const current = readLocal();
-  const updatedMsgs = [...(current.messages || []), message];
-  writeLocal({ ...current, messages: updatedMsgs });
+  const updatedMsgs = [msgWithTime, ...(current.messages || []).filter(m => m.id !== msgWithTime.id)];
+  const updated = writeLocal({ ...current, messages: updatedMsgs });
+  notifyLocalBroadcast(updated);
 }
 
 export async function signIn(email, password) {

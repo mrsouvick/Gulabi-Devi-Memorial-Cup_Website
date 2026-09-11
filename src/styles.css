@@ -935,6 +935,57 @@
   color: #172d20;
 }
 
+.admin-sidebar nav button {
+  position: relative;
+}
+
+.admin-sidebar-badge {
+  margin-left: auto;
+  background: var(--lime);
+  color: #07110e;
+  font-family: 'DM Mono', monospace;
+  font-size: 10px;
+  font-weight: 800;
+  padding: 1px 7px;
+  border-radius: 10px;
+}
+
+.submission-actions-row {
+  margin-top: 10px;
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.submission-action-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 5px 10px;
+  background: #173829;
+  color: var(--lime);
+  font-family: 'DM Mono', monospace;
+  font-size: 11px;
+  font-weight: 700;
+  border-radius: 3px;
+  text-decoration: none;
+  transition: background 0.15s;
+}
+
+.submission-action-btn:hover {
+  background: #25523d;
+  color: #fff;
+}
+
+.submission-action-btn.wa-btn {
+  background: #128c7e;
+  color: #fff;
+}
+
+.submission-action-btn.wa-btn:hover {
+  background: #075e54;
+}
+
 @media(max-width:900px) {
   .live-scoreboard-console {
     grid-template-columns: 1fr;

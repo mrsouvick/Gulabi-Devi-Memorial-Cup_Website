@@ -740,7 +740,13 @@ function AdminPortal({ tournament, save, go, notice, setNotice }) {
   const [active, setActive] = useState('dashboard');
   if (!session) return <AdminLogin onSuccess={setSession} go={go} />;
   const exit = () => { signOut(); setSession(null); };
-  return <div className="admin-app"><aside className="admin-sidebar"><button className="admin-brand" onClick={() => go('/')}><img src={logo} alt="" /><span>TOURNAMENT<br /><em>DESK</em></span></button><div className="admin-profile"><span>{session.email?.slice(0, 1).toUpperCase()}</span><div><strong>{session.email}</strong><small>{isCloudEnabled ? 'Secure cloud session' : 'Local preview mode'}</small></div></div><nav>{adminSections.map(([key, label, Icon]) => <button className={active === key ? 'active' : ''} key={key} onClick={() => setActive(key)}><Icon size={17} />{label}</button>)}</nav><div className="admin-sidebar-footer"><button onClick={() => go('/')}><ChevronLeft size={16} /> Public website</button><button onClick={exit}><LogOut size={16} /> Sign out</button></div></aside><main className="admin-main"><Toast notice={notice} dismiss={() => setNotice(null)} /><AdminTopbar active={active} tournament={tournament} go={go} />{active === 'dashboard' && <AdminDashboard tournament={tournament} setActive={setActive} />}{active === 'live' && <LiveMatchController tournament={tournament} save={save} />}{active === 'settings' && <SettingsEditor data={tournament} save={save} />}{['teams', 'fixtures', 'standings', 'champions', 'contacts', 'dignitaries', 'messages', 'registrations'].includes(active) && <CollectionEditor collection={active} data={tournament} save={save} />}</main></div>;
+
+  const counts = {
+    messages: tournament.messages?.length || 0,
+    registrations: tournament.registrations?.length || 0
+  };
+
+  return <div className="admin-app"><aside className="admin-sidebar"><button className="admin-brand" onClick={() => go('/')}><img src={logo} alt="" /><span>TOURNAMENT<br /><em>DESK</em></span></button><div className="admin-profile"><span>{session.email?.slice(0, 1).toUpperCase()}</span><div><strong>{session.email}</strong><small>{isCloudEnabled ? 'Secure cloud session' : 'Local preview mode'}</small></div></div><nav>{adminSections.map(([key, label, Icon]) => <button className={active === key ? 'active' : ''} key={key} onClick={() => setActive(key)}><Icon size={17} /><span>{label}</span>{counts[key] > 0 && <span className="admin-sidebar-badge">{counts[key]}</span>}</button>)}</nav><div className="admin-sidebar-footer"><button onClick={() => go('/')}><ChevronLeft size={16} /> Public website</button><button onClick={exit}><LogOut size={16} /> Sign out</button></div></aside><main className="admin-main"><Toast notice={notice} dismiss={() => setNotice(null)} /><AdminTopbar active={active} tournament={tournament} go={go} />{active === 'dashboard' && <AdminDashboard tournament={tournament} setActive={setActive} />}{active === 'live' && <LiveMatchController tournament={tournament} save={save} />}{active === 'settings' && <SettingsEditor data={tournament} save={save} />}{['teams', 'fixtures', 'standings', 'champions', 'contacts', 'dignitaries', 'messages', 'registrations'].includes(active) && <CollectionEditor collection={active} data={tournament} save={save} />}</main></div>;
 }
 
 function LiveMatchController({ tournament, save }) {
@@ -1036,7 +1042,107 @@ const collectionConfig = {
   registrations: { title: 'Registrations', singular: 'registration', icon: Users, fields: [['college', 'College / Institution'], ['team', 'Team name'], ['captain', 'Captain / Coach'], ['phone', 'Contact phone'], ['email', 'Email address'], ['count', 'Squad player count']] }
 };
 
-function CollectionEditor({ collection, data, save }) { const config = collectionConfig[collection]; const [editing, setEditing] = useState(null); const [draft, setDraft] = useState({}); const [saving, setSaving] = useState(false); const items = data[collection] || []; const startNew = () => { setEditing('new'); setDraft({}); }; const startEdit = (item) => { setEditing(item.id); setDraft(item); }; const cancel = () => { setEditing(null); setDraft({}); }; const submit = async (event) => { event.preventDefault(); setSaving(true); try { const record = { ...draft, id: editing === 'new' ? makeId(collection) : editing }; config.fields.forEach(([key,, type]) => { if (type === 'number') record[key] = Number(record[key] || 0); }); const nextItems = editing === 'new' ? [...items, record] : items.map((item) => item.id === editing ? record : item); await save({ ...data, [collection]: nextItems }); cancel(); } finally { setSaving(false); } }; const remove = async (id) => { if (!window.confirm('Remove this item from the public website?')) return; await save({ ...data, [collection]: items.filter((item) => item.id !== id) }); if (editing === id) cancel(); }; const Icon = config.icon; return <div className="admin-content"><section className="collection-heading"><div><span>CONTENT MANAGEMENT</span><h2>{config.title}</h2><p>{items.length} published {items.length === 1 ? config.singular : config.title.toLowerCase()}.</p></div><button className="save-button" onClick={startNew}><Plus size={17} /> Add {config.singular}</button></section><div className="collection-layout"><section className="records-list">{items.length ? items.map((item, index) => <article className={editing === item.id ? 'selected' : ''} key={item.id}><span>{String(index + 1).padStart(2, '0')}</span><div><strong>{recordTitle(collection, item)}</strong><small>{recordSubtitle(collection, item)}</small></div><button onClick={() => startEdit(item)} aria-label="Edit"><Pencil size={16} /></button><button className="delete-record" onClick={() => remove(item.id)} aria-label="Delete"><Trash2 size={16} /></button></article>) : <div className="records-empty"><Icon size={25} /><p>No {config.title.toLowerCase()} published yet.</p><button onClick={startNew}>Create the first one <ArrowUpRight size={15} /></button></div>}</section><section className="record-editor">{editing ? <form className="admin-form" onSubmit={submit}><div className="editor-heading"><div><span>{editing === 'new' ? 'NEW RECORD' : 'EDIT RECORD'}</span><h3>{editing === 'new' ? `Add ${config.singular}` : recordTitle(collection, draft)}</h3></div><button type="button" onClick={cancel}>Cancel</button></div>{config.fields.map(([key, label, type]) => <FormField key={key} label={label} type={type} value={draft[key] ?? ''} onChange={(value) => setDraft({ ...draft, [key]: value })} />)}{collection === 'fixtures' && <FixtureEventsEditor draft={draft} setDraft={setDraft} />}<button className="save-button form-save" disabled={saving}><Save size={16} /> {saving ? 'Saving...' : 'Save to website'}</button></form> : <div className="editor-placeholder"><Icon size={33} /><h3>Select an item to edit</h3><p>Create a new record or choose one from the list.</p></div>}</section></div></div>; }
+function CollectionEditor({ collection, data, save }) {
+  const config = collectionConfig[collection];
+  const [editing, setEditing] = useState(null);
+  const [draft, setDraft] = useState({});
+  const [saving, setSaving] = useState(false);
+  const items = data[collection] || [];
+  const startNew = () => { setEditing('new'); setDraft({}); };
+  const startEdit = (item) => { setEditing(item.id); setDraft(item); };
+  const cancel = () => { setEditing(null); setDraft({}); };
+  const submit = async (event) => {
+    event.preventDefault();
+    setSaving(true);
+    try {
+      const record = { ...draft, id: editing === 'new' ? makeId(collection) : editing };
+      config.fields.forEach(([key,, type]) => { if (type === 'number') record[key] = Number(record[key] || 0); });
+      const nextItems = editing === 'new' ? [...items, record] : items.map((item) => item.id === editing ? record : item);
+      await save({ ...data, [collection]: nextItems });
+      cancel();
+    } finally { setSaving(false); }
+  };
+  const remove = async (id) => {
+    if (!window.confirm('Remove this item from the public website?')) return;
+    await save({ ...data, [collection]: items.filter((item) => item.id !== id) });
+    if (editing === id) cancel();
+  };
+  const Icon = config.icon;
+  return (
+    <div className="admin-content">
+      <section className="collection-heading">
+        <div>
+          <span>CONTENT MANAGEMENT</span>
+          <h2>{config.title}</h2>
+          <p>{items.length} published {items.length === 1 ? config.singular : config.title.toLowerCase()}.</p>
+        </div>
+        <button className="save-button" onClick={startNew}><Plus size={17} /> Add {config.singular}</button>
+      </section>
+      <div className="collection-layout">
+        <section className="records-list">
+          {items.length ? items.map((item, index) => (
+            <article className={editing === item.id ? 'selected' : ''} key={item.id}>
+              <span>{String(index + 1).padStart(2, '0')}</span>
+              <div>
+                <strong>{recordTitle(collection, item)}</strong>
+                <small>{recordSubtitle(collection, item)}</small>
+                {(collection === 'messages' || collection === 'registrations') && (
+                  <div className="submission-actions-row">
+                    {item.phone && (
+                      <a href={`tel:${item.phone}`} className="submission-action-btn" target="_blank" rel="noreferrer">
+                        <Phone size={12} /> Call {item.phone}
+                      </a>
+                    )}
+                    {item.phone && (
+                      <a href={`https://wa.me/91${item.phone.replace(/\D/g, '')}`} className="submission-action-btn wa-btn" target="_blank" rel="noreferrer">
+                        💬 WhatsApp
+                      </a>
+                    )}
+                    {item.email && (
+                      <a href={`mailto:${item.email}`} className="submission-action-btn" target="_blank" rel="noreferrer">
+                        ✉️ Email
+                      </a>
+                    )}
+                  </div>
+                )}
+              </div>
+              <button onClick={() => startEdit(item)} aria-label="Edit"><Pencil size={16} /></button>
+              <button className="delete-record" onClick={() => remove(item.id)} aria-label="Delete"><Trash2 size={16} /></button>
+            </article>
+          )) : (
+            <div className="records-empty">
+              <Icon size={25} />
+              <p>No {config.title.toLowerCase()} published yet.</p>
+              <button onClick={startNew}>Create the first one <ArrowUpRight size={15} /></button>
+            </div>
+          )}
+        </section>
+        <section className="record-editor">
+          {editing ? (
+            <form className="admin-form" onSubmit={submit}>
+              <div className="editor-heading">
+                <div>
+                  <span>{editing === 'new' ? 'NEW RECORD' : 'EDIT RECORD'}</span>
+                  <h3>{editing === 'new' ? `Add ${config.singular}` : recordTitle(collection, draft)}</h3>
+                </div>
+                <button type="button" onClick={cancel}>Cancel</button>
+              </div>
+              {config.fields.map(([key, label, type]) => <FormField key={key} label={label} type={type} value={draft[key] ?? ''} onChange={(value) => setDraft({ ...draft, [key]: value })} />)}
+              {collection === 'fixtures' && <FixtureEventsEditor draft={draft} setDraft={setDraft} />}
+              <button className="save-button form-save" disabled={saving}><Save size={16} /> {saving ? 'Saving...' : 'Save to website'}</button>
+            </form>
+          ) : (
+            <div className="editor-placeholder">
+              <Icon size={33} />
+              <h3>Select an item to edit</h3>
+              <p>Create a new record or choose one from the list.</p>
+            </div>
+          )}
+        </section>
+      </div>
+    </div>
+  );
+}
 
 function FixtureEventsEditor({ draft, setDraft }) {
   const [minute, setMinute] = useState('');
@@ -1109,8 +1215,8 @@ function recordSubtitle(collection, item) {
   if (collection === 'champions') return item.year || 'Year TBA';
   if (collection === 'teams') return [item.city, item.group].filter(Boolean).join(' / ') || 'Team profile';
   if (collection === 'dignitaries') return item.role || 'Patron & Leader';
-  if (collection === 'messages') return [item.phone, item.message].filter(Boolean).join(' - ') || 'Message details';
-  if (collection === 'registrations') return `Captain: ${item.captain || 'N/A'} / Tel: ${item.phone || 'N/A'} / Email: ${item.email || 'N/A'}`;
+  if (collection === 'messages') return [item.submittedAt ? `[${item.submittedAt}]` : '', item.phone ? `Tel: ${item.phone}` : '', item.message].filter(Boolean).join(' • ') || 'Message details';
+  if (collection === 'registrations') return [item.submittedAt ? `[${item.submittedAt}]` : '', `Captain: ${item.captain || 'N/A'}`, `Tel: ${item.phone || 'N/A'}`, `Email: ${item.email || 'N/A'}`, `Squad: ${item.count || '18'} players`].filter(Boolean).join(' • ');
   return item.role || item.phone || 'Contact details';
 }
 
