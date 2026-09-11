@@ -206,10 +206,11 @@ function Home({ tournament, go }) {
         {digns.map((item, index) => (
           <article className="dignitary-card" key={item.id || index}>
             <div className="dignitary-image-wrap">
-              <img src={item.image || '/assets/dignitaries/chairman.jpg'} alt={item.title} />
+              <img src={item.image || '/assets/dignitaries/chairman.jpg'} alt={item.name || item.title} />
               <span className="dignitary-badge">{item.role}</span>
             </div>
             <div className="dignitary-body">
+              {item.name && <p className="dignitary-name">{item.name}</p>}
               <h3>{item.title}</h3>
               <p>Budge Budge Institute of Technology</p>
             </div>
@@ -1037,7 +1038,7 @@ const collectionConfig = {
   standings: { title: 'Standings', singular: 'standing', icon: Table2, fields: [['team', 'Team'], ['played', 'Played', 'number'], ['wins', 'Wins', 'number'], ['draws', 'Draws', 'number'], ['losses', 'Losses', 'number'], ['gf', 'Goals for', 'number'], ['ga', 'Goals against', 'number'], ['points', 'Points', 'number']] },
   champions: { title: 'History', singular: 'champion record', icon: Trophy, fields: [['year', 'Year'], ['winner', 'Champion'], ['runnerUp', 'Runner-up']] },
   contacts: { title: 'Contacts', singular: 'contact', icon: Phone, fields: [['name', 'Name'], ['role', 'Role'], ['phone', 'Phone number']] },
-  dignitaries: { title: 'Patrons & Leaders', singular: 'patron record', icon: Users, fields: [['title', 'Title (e.g. CHAIRMAN)'], ['role', 'Role (e.g. CHIEF PATRON)'], ['image', 'Image Path / URL']] },
+  dignitaries: { title: 'Patrons & Leaders', singular: 'patron record', icon: Users, fields: [['name', 'Full Name (e.g. Dr. Ramesh Das)'], ['title', 'Designation (e.g. CHAIRMAN)'], ['role', 'Tournament Role (e.g. CHIEF PATRON)'], ['image', 'Photo URL or /assets/dignitaries/filename.jpg']] },
   messages: { title: 'Messages', singular: 'message', icon: Phone, fields: [['name', 'Name'], ['phone', 'Phone number'], ['message', 'Message content', 'textarea']] },
   registrations: { title: 'Registrations', singular: 'registration', icon: Users, fields: [['college', 'College / Institution'], ['team', 'Team name'], ['captain', 'Captain / Coach'], ['phone', 'Contact phone'], ['email', 'Email address'], ['count', 'Squad player count']] }
 };
@@ -1129,6 +1130,12 @@ function CollectionEditor({ collection, data, save }) {
               </div>
               {config.fields.map(([key, label, type]) => <FormField key={key} label={label} type={type} value={draft[key] ?? ''} onChange={(value) => setDraft({ ...draft, [key]: value })} />)}
               {collection === 'fixtures' && <FixtureEventsEditor draft={draft} setDraft={setDraft} />}
+              {collection === 'dignitaries' && draft.image && (
+                <div className="patron-image-preview">
+                  <small>PHOTO PREVIEW</small>
+                  <img src={draft.image} alt={draft.name || draft.title || 'Patron'} />
+                </div>
+              )}
               <button className="save-button form-save" disabled={saving}><Save size={16} /> {saving ? 'Saving...' : 'Save to website'}</button>
             </form>
           ) : (
@@ -1203,7 +1210,7 @@ function recordTitle(collection, item) {
   if (collection === 'fixtures') return `${item.home || 'TBA'} vs ${item.away || 'TBA'}`;
   if (collection === 'standings') return item.team || 'Unnamed team';
   if (collection === 'champions') return item.winner || 'Champion record';
-  if (collection === 'dignitaries') return item.title || 'Patron';
+  if (collection === 'dignitaries') return [item.name, item.title].filter(Boolean).join(' — ') || 'Patron';
   if (collection === 'messages') return item.name ? `From: ${item.name}` : 'Contact Message';
   if (collection === 'registrations') return item.team ? `${item.team} (${item.college || 'College'})` : 'Team Registration';
   return item.name || 'Untitled record';
