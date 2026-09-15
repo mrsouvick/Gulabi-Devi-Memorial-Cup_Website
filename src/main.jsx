@@ -219,7 +219,7 @@ function Home({ tournament, go }) {
       </div>
     </section>
     <section className="home-grid-section section-shell"><SectionLabel number="03" text="TOURNAMENT DESK" /><div className="home-grid"><InfoCard icon={<Users />} title="Teams" text={teams.length ? `${teams.length} confirmed team${teams.length === 1 ? '' : 's'} are on the board.` : 'The official team list will appear after confirmations.'} action="View teams" onClick={() => go('/teams')} /><InfoCard icon={<CalendarDays />} title="Fixtures" text={fixtures.length ? `${fixtures.length} fixture${fixtures.length === 1 ? '' : 's'} have been published.` : 'The match schedule will be released by the tournament office.'} action="Open match centre" onClick={() => go('/fixtures')} /><InfoCard icon={<Trophy />} title="The cup" text="League football, knockout tension, one trophy to lift." action="Tournament history" onClick={() => go('/history')} /></div></section>
-    <section className="home-venue section-shell"><div className="venue-art"><MapPin size={36} /><span>{settings.venue}</span></div><div><SectionLabel number="04" text="THE VENUE" /><h2>WHERE THE<br /><em>GAME LIVES.</em></h2><p>{settings.address}</p><button className="text-button" onClick={() => go('/venue')}>Venue details <ArrowUpRight size={16} /></button></div></section>
+    <section className="home-venue section-shell"><div className="venue-art"><img src="/assets/bbit-venue-map.png" alt={settings.venue} style={{width:'100%',height:'100%',objectFit:'cover'}} /></div><div><SectionLabel number="04" text="THE VENUE" /><h2>WHERE THE<br /><em>GAME LIVES.</em></h2><p>{settings.address}</p><button className="text-button" onClick={() => go('/venue')}>Venue details <ArrowUpRight size={16} /></button></div></section>
   </>;
 }
 
