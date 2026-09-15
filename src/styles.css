@@ -46,6 +46,7 @@
 .fixture-stage-badge { color:var(--gold); font-family:'DM Mono',monospace; font-size:9px; text-transform:uppercase; letter-spacing:.08em; }
 .fixture-status-pill { padding:3px 9px; font-family:'DM Mono',monospace; font-size:8px; text-transform:uppercase; border-radius:2px; }
 .fixture-status-pill.scheduled { background:rgba(204,250,42,.12); color:var(--lime); border:1px solid var(--lime); }
+.fixture-status-pill.live { background:rgba(238,70,70,.15); color:#ee4646; border:1px solid #ee4646; }
 .fixture-status-pill.completed { background:rgba(238,244,231,.12); color:#cfd9d1; border:1px solid #7e9183; }
 .fixture-card-teams { display:grid; grid-template-columns:1fr auto 1fr; align-items:center; gap:20px; text-align:center; padding:10px 0 18px; }
 .team-side strong { font-family:'Barlow Condensed',sans-serif; font-size:32px; font-weight:700; text-transform:uppercase; color:var(--cream); }
@@ -442,6 +443,7 @@
     align-items: flex-start;
     gap: 10px;
     padding: 12px 20px;
+    margin-top: 66px;
   }
   .live-banner-content {
     flex-direction: column;
