@@ -732,7 +732,55 @@ function ContactPage({ contacts, settings, tournament, save }) {
   );
 }
 
-function PublicFooter({ settings, go }) { return <footer className="public-footer"><div className="footer-brand"><img src={logo} alt="Gulabi Devi Cup Logo" className="footer-logo-main" /><img src={collegeLogo} alt="BBIT College Logo" className="footer-logo-college" title="Budge Budge Institute of Technology" /><div><strong>{settings.name}</strong><small>{settings.edition} / {settings.organizer}</small></div></div><div className="footer-links">{publicRoutes.slice(1, 5).map(([label, target]) => <button key={target} onClick={() => go(target)}>{label}</button>)}</div><div className="footer-bottom">Copyright {settings.year} {settings.name}. Organized by Budge Budge Institute of Technology (BBIT). All rights reserved.</div></footer>; }
+function PublicFooter({ settings, go }) {
+  const quickLinks = [['Teams', '/teams'], ['Fixtures', '/fixtures'], ['Standings', '/standings'], ['Bracket', '/bracket']];
+  return (
+    <footer className="site-footer">
+      <div className="footer-pitch-texture" aria-hidden="true" />
+      <div className="footer-main">
+        <div className="footer-col footer-col-brand">
+          <div className="footer-brand-row">
+            <img src={logo} alt="Gulabi Devi Cup Logo" className="footer-logo-main" />
+          </div>
+          <strong className="footer-title">{settings.name}</strong>
+          <span className="footer-edition">{settings.edition} · {settings.organizer}</span>
+          <p className="footer-desc">Celebrating football, competition, and legacy.</p>
+        </div>
+        <div className="footer-col footer-col-links">
+          <h4 className="footer-heading">Quick Links</h4>
+          <nav className="footer-nav" aria-label="Footer navigation">
+            {quickLinks.map(([label, target]) => (
+              <button key={target} className="footer-nav-link" onClick={() => go(target)}>{label}</button>
+            ))}
+          </nav>
+        </div>
+        <div className="footer-col footer-col-info">
+          <h4 className="footer-heading">Tournament</h4>
+          <ul className="footer-info-list">
+            <li><span className="footer-info-label">Edition</span><span>{settings.edition}</span></li>
+            <li><span className="footer-info-label">Cup</span><span>{settings.name}</span></li>
+            <li><span className="footer-info-label">Venue</span><span>Budge Budge Institute of Technology (BBIT)</span></li>
+          </ul>
+        </div>
+      </div>
+      <div className="footer-tagline-area">
+        <span className="footer-tagline">The Game. The Legacy. The Memorial.</span>
+      </div>
+      <div className="footer-divider" />
+      <div className="footer-copyright-bar">
+        <div className="footer-copyright-text">
+          <span>© {settings.year} {settings.name}</span>
+          <span className="footer-copyright-sep">·</span>
+          <span>Organized by Budge Budge Institute of Technology (BBIT)</span>
+          <span className="footer-copyright-sep">·</span>
+          <span>All rights reserved.</span>
+        </div>
+      </div>
+      <div className="footer-accent-line" aria-hidden="true" />
+    </footer>
+  );
+}
+
 
 function Toast({ notice, dismiss }) { if (!notice) return null; return <div className={`toast ${notice.type}`} role="status"><span>{notice.type === 'success' ? <CheckCircle2 size={17} /> : <CircleAlert size={17} />}</span>{notice.text}<button onClick={dismiss} aria-label="Dismiss">×</button></div>; }
 
