@@ -32,7 +32,9 @@
 .team-number { color:var(--lime); font-family:'DM Mono',monospace; font-size:10px; }
 .team-group-tag { padding:3px 8px; background:rgba(204,250,42,.1); border:1px solid var(--lime); color:var(--lime); font-family:'DM Mono',monospace; font-size:8px; text-transform:uppercase; }
 .team-card-body { text-align:center; padding:10px 0 20px; }
-.team-crest { width:64px; height:64px; margin:0 auto 14px; display:grid; place-items:center; border:2px solid var(--gold); border-radius:50%; background:#07110e; color:var(--gold); font-family:'Barlow Condensed',sans-serif; font-size:24px; font-weight:800; }
+.team-crest { width:72px; height:72px; margin:0 auto 14px; display:grid; place-items:center; border:2px solid var(--gold); border-radius:50%; background:#07110e; color:var(--gold); font-family:'Barlow Condensed',sans-serif; font-size:22px; font-weight:800; overflow:hidden; position:relative; box-shadow:0 4px 16px rgba(0,0,0,.4); }
+.team-crest-img { width:100%; height:100%; object-fit:contain; padding:5px; background:#ffffff; border-radius:50%; display:block; }
+.team-crest-fallback { width:100%; height:100%; display:grid; place-items:center; color:var(--gold); text-transform:uppercase; font-size:20px; font-weight:800; }
 .team-card-body h3 { margin:0 0 6px; font-family:'Barlow Condensed',sans-serif; font-size:28px; font-weight:700; text-transform:uppercase; color:var(--cream); }
 .team-card-body p { margin:0; color:#9db0a1; font-size:12px; }
 .team-card-footer { display:flex; justify-content:space-between; align-items:center; margin-top:auto; padding-top:14px; border-top:1px solid var(--line); color:#8ba090; font-family:'DM Mono',monospace; font-size:8px; }
@@ -1627,4 +1629,145 @@
   }
 }
 
+/* College Logo & Admin Preview Enhancements */
+.team-logo-preview {
+  margin: 14px 0 18px;
+  padding: 16px;
+  background: #07140f;
+  border: 1px dashed var(--line);
+  text-align: center;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+}
+.team-logo-preview small {
+  color: var(--gold);
+  font-family: 'DM Mono', monospace;
+  font-size: 9px;
+  letter-spacing: .08em;
+}
+.team-preview-crest {
+  width: 76px;
+  height: 76px;
+  border-radius: 50%;
+  border: 2px solid var(--gold);
+  background: #ffffff;
+  overflow: hidden;
+  display: grid;
+  place-items: center;
+  padding: 5px;
+  box-shadow: 0 4px 14px rgba(0, 0, 0, .4);
+}
+.team-preview-crest img {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+}
 
+/* Patron Image Preview */
+.patron-image-preview {
+  margin: 14px 0 18px;
+  padding: 16px;
+  background: #07140f;
+  border: 1px dashed var(--line);
+  text-align: center;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+}
+.patron-image-preview small {
+  color: var(--gold);
+  font-family: 'DM Mono', monospace;
+  font-size: 9px;
+  letter-spacing: .08em;
+}
+.patron-image-preview img {
+  width: 72px;
+  height: 72px;
+  border-radius: 50%;
+  border: 2px solid var(--gold);
+  object-fit: cover;
+}
+
+/* Admin Records List Crest Thumbnail */
+.record-main-col {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-width: 0;
+}
+.record-text-meta {
+  min-width: 0;
+  flex: 1;
+}
+.record-thumb-crest {
+  width: 34px;
+  height: 34px;
+  border-radius: 50%;
+  border: 1.5px solid var(--gold);
+  background: #ffffff;
+  object-fit: contain;
+  padding: 2px;
+  flex-shrink: 0;
+  box-shadow: 0 2px 5px rgba(0, 0, 0, .2);
+}
+
+/* Fixtures & Live Matchday Mini Logos */
+.fixture-team-row {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+}
+.fixture-team-mini-logo {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  border: 1.5px solid var(--gold);
+  background: #ffffff;
+  object-fit: contain;
+  padding: 2px;
+  flex-shrink: 0;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, .3);
+}
+.live-team-span {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+.live-mini-logo {
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  border: 1px solid var(--gold);
+  background: #ffffff;
+  object-fit: contain;
+  padding: 1px;
+  flex-shrink: 0;
+}
+.standings-mini-logo {
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  border: 1px solid var(--gold);
+  background: #ffffff;
+  object-fit: contain;
+  padding: 2px;
+  vertical-align: middle;
+  margin-right: 8px;
+  display: inline-block;
+}
+.bracket-mini-logo {
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  border: 1px solid var(--gold);
+  background: #ffffff;
+  object-fit: contain;
+  padding: 1px;
+  vertical-align: middle;
+  margin-right: 6px;
+  display: inline-block;
+}

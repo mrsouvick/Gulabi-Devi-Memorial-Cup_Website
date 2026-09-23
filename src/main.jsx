@@ -132,14 +132,14 @@ function PublicSite({ tournament, route, go, notice, setNotice, save }) {
       <button className="public-menu" onClick={() => setMenuOpen(!menuOpen)} aria-expanded={menuOpen} aria-label="Open navigation">{menuOpen ? <X /> : <Menu />}</button>
     </header>
     {menuOpen && <div className="public-mobile-nav">{publicRoutes.map(([label, target]) => <button key={target} onClick={() => navigate(target)}>{label}<ChevronRight size={17} /></button>)}<button onClick={() => navigate('/register')}>Register your team <ArrowUpRight size={17} /></button></div>}
-    <LiveMatchdayBanner fixtures={tournament.fixtures} go={navigate} />
+    <LiveMatchdayBanner fixtures={tournament.fixtures} teams={tournament.teams} go={navigate} />
     <main id="main-content">
       <Toast notice={notice} dismiss={() => setNotice(null)} />
       {route === '/' && <Home tournament={tournament} go={navigate} />}
       {route === '/teams' && <TeamsPage teams={tournament.teams} go={navigate} />}
-      {route === '/fixtures' && <FixturesPage fixtures={tournament.fixtures} go={navigate} />}
-      {route === '/standings' && <StandingsPage standings={tournament.standings} />}
-      {route === '/bracket' && <BracketPage fixtures={tournament.fixtures} />}
+      {route === '/fixtures' && <FixturesPage fixtures={tournament.fixtures} teams={tournament.teams} go={navigate} />}
+      {route === '/standings' && <StandingsPage standings={tournament.standings} teams={tournament.teams} />}
+      {route === '/bracket' && <BracketPage fixtures={tournament.fixtures} teams={tournament.teams} />}
       {route === '/history' && <HistoryPage champions={tournament.champions} />}
       {route === '/venue' && <VenuePage settings={settings} />}
       {route === '/register' && <RegisterPage tournament={tournament} settings={settings} contacts={tournament.contacts} registrations={tournament.registrations} save={save} go={navigate} />}
@@ -306,9 +306,23 @@ function MatchTimerBadge({ fixture, size = 'normal', showPeriod = true }) {
   return null;
 }
 
-function LiveMatchdayBanner({ fixtures = [], go }) {
+export function getTeamLogo(teamName, teams = []) {
+  if (!teamName || !Array.isArray(teams)) return null;
+  const normalized = teamName.trim().toLowerCase();
+  const match = teams.find(t => 
+    (t.name && t.name.trim().toLowerCase() === normalized) ||
+    (t.shortName && t.shortName.trim().toLowerCase() === normalized) ||
+    (t.city && t.city.trim().toLowerCase() === normalized)
+  );
+  return match?.logo || null;
+}
+
+function LiveMatchdayBanner({ fixtures = [], teams = [], go }) {
   const liveFixture = useMemo(() => fixtures.find(f => f.status === 'live'), [fixtures]);
   if (!liveFixture) return null;
+
+  const homeLogo = getTeamLogo(liveFixture.home, teams);
+  const awayLogo = getTeamLogo(liveFixture.away, teams);
 
   return (
     <div className="live-matchday-banner">
@@ -318,9 +332,29 @@ function LiveMatchdayBanner({ fixtures = [], go }) {
       </div>
       <div className="live-banner-content">
         <div className="live-teams-display">
-          <span>{liveFixture.home}</span>
+          <span className="live-team-span">
+            {homeLogo && (
+              <img
+                src={homeLogo}
+                alt=""
+                className="live-mini-logo"
+                onError={(e) => { e.currentTarget.style.display = 'none'; }}
+              />
+            )}
+            {liveFixture.home}
+          </span>
           <span className="live-score-pill">{liveFixture.homeScore ?? 0} - {liveFixture.awayScore ?? 0}</span>
-          <span>{liveFixture.away}</span>
+          <span className="live-team-span">
+            {awayLogo && (
+              <img
+                src={awayLogo}
+                alt=""
+                className="live-mini-logo"
+                onError={(e) => { e.currentTarget.style.display = 'none'; }}
+              />
+            )}
+            {liveFixture.away}
+          </span>
           <MatchTimerBadge fixture={liveFixture} size="compact" />
         </div>
         {liveFixture.liveNote && (
@@ -421,7 +455,26 @@ function TeamsPage({ teams, go }) {
                   <span className="team-group-tag">{team.group || 'Contender'}</span>
                 </div>
                 <div className="team-card-body">
-                  <div className="team-crest">{team.shortName || team.name?.slice(0, 3) || 'FC'}</div>
+                  <div className="team-crest">
+                    {team.logo ? (
+                      <img
+                        src={team.logo}
+                        alt={`${team.name} logo`}
+                        className="team-crest-img"
+                        onError={(e) => {
+                          e.currentTarget.style.display = 'none';
+                          const fallback = e.currentTarget.nextElementSibling;
+                          if (fallback) fallback.style.display = 'grid';
+                        }}
+                      />
+                    ) : null}
+                    <span
+                      className="team-crest-fallback"
+                      style={{ display: team.logo ? 'none' : 'grid' }}
+                    >
+                      {team.shortName || team.name?.slice(0, 3) || 'FC'}
+                    </span>
+                  </div>
                   <h3>{team.name}</h3>
                   <p>{team.city || 'Official College Team'}</p>
                 </div>
@@ -440,7 +493,7 @@ function TeamsPage({ teams, go }) {
   );
 }
 
-function FixturesPage({ fixtures, go }) {
+function FixturesPage({ fixtures, teams = [], go }) {
   const [stageFilter, setStageFilter] = useState('All');
 
   const filtered = useMemo(() => {
@@ -464,6 +517,8 @@ function FixturesPage({ fixtures, go }) {
             {filtered.map(fixture => {
               const isLive = fixture.status === 'live';
               const isCompleted = fixture.status === 'completed';
+              const homeLogo = getTeamLogo(fixture.home, teams);
+              const awayLogo = getTeamLogo(fixture.away, teams);
               return (
                 <article className={`fixture-card-rich ${isLive ? 'is-live' : ''}`} key={fixture.id}>
                   <div className="fixture-card-head">
@@ -478,7 +533,17 @@ function FixturesPage({ fixtures, go }) {
                   </div>
                   <div className="fixture-card-teams">
                     <div className="team-side home-side">
-                      <strong>{fixture.home}</strong>
+                      <div className="fixture-team-row">
+                        {homeLogo && (
+                          <img
+                            src={homeLogo}
+                            alt=""
+                            className="fixture-team-mini-logo"
+                            onError={(e) => { e.currentTarget.style.display = 'none'; }}
+                          />
+                        )}
+                        <strong>{fixture.home}</strong>
+                      </div>
                     </div>
                     <div className="score-box">
                       {isCompleted || isLive ? (
@@ -491,7 +556,17 @@ function FixturesPage({ fixtures, go }) {
                       )}
                     </div>
                     <div className="team-side away-side">
-                      <strong>{fixture.away}</strong>
+                      <div className="fixture-team-row">
+                        {awayLogo && (
+                          <img
+                            src={awayLogo}
+                            alt=""
+                            className="fixture-team-mini-logo"
+                            onError={(e) => { e.currentTarget.style.display = 'none'; }}
+                          />
+                        )}
+                        <strong>{fixture.away}</strong>
+                      </div>
                     </div>
                   </div>
                   {fixture.liveNote && (
@@ -531,7 +606,7 @@ function FixturesPage({ fixtures, go }) {
   );
 }
 
-function StandingsPage({ standings }) {
+function StandingsPage({ standings, teams = [] }) {
   const sorted = useMemo(() => {
     return [...standings].sort((a, b) => Number(b.points || 0) - Number(a.points || 0) || Number(b.gf || 0) - Number(a.gf || 0));
   }, [standings]);
@@ -558,10 +633,21 @@ function StandingsPage({ standings }) {
               {sorted.map((team, index) => {
                 const gd = Number(team.gf || 0) - Number(team.ga || 0);
                 const isTop2 = index < 2;
+                const teamLogo = getTeamLogo(team.team, teams);
                 return (
                   <div className={`standing-row-rich ${isTop2 ? 'top-qualifier' : ''}`} key={team.id || index}>
                     <span className="rank-col">{isTop2 ? `0${index + 1} ⭐` : String(index + 1).padStart(2, '0')}</span>
-                    <strong className="team-col">{team.team}</strong>
+                    <strong className="team-col">
+                      {teamLogo && (
+                        <img
+                          src={teamLogo}
+                          alt=""
+                          className="standings-mini-logo"
+                          onError={(e) => { e.currentTarget.style.display = 'none'; }}
+                        />
+                      )}
+                      {team.team}
+                    </strong>
                     <span>{team.played || 0}</span>
                     <span>{team.wins || 0}</span>
                     <span>{team.draws || 0}</span>
@@ -587,7 +673,7 @@ function StandingsPage({ standings }) {
   );
 }
 
-function BracketPage({ fixtures = [] }) {
+function BracketPage({ fixtures = [], teams = [] }) {
   const qfs = useMemo(() => fixtures.filter(f => (f.stage || '').toLowerCase().includes('quarter') || (f.stage || '').toLowerCase().includes('qf')), [fixtures]);
   const sfs = useMemo(() => fixtures.filter(f => (f.stage || '').toLowerCase().includes('semi') || (f.stage || '').toLowerCase().includes('sf')), [fixtures]);
   const finals = useMemo(() => fixtures.filter(f => (f.stage || '').toLowerCase().includes('final') && !(f.stage || '').toLowerCase().includes('semi') && !(f.stage || '').toLowerCase().includes('quarter')), [fixtures]);
@@ -607,16 +693,38 @@ function BracketPage({ fixtures = [] }) {
     const awayScore = fixture.status === 'completed' ? (fixture.awayScore ?? 0) : '-';
     const homeIsWinner = fixture.status === 'completed' && Number(fixture.homeScore) > Number(fixture.awayScore);
     const awayIsWinner = fixture.status === 'completed' && Number(fixture.awayScore) > Number(fixture.homeScore);
+    const homeLogo = getTeamLogo(fixture.home, teams);
+    const awayLogo = getTeamLogo(fixture.away, teams);
 
     return (
       <div className={`bracket-card-rich ${highlight ? 'highlight' : ''} ${isFinal ? 'championship-card' : ''}`}>
         <small>{fixture.stage || defaultLabel} {fixture.date ? `(${fixture.date})` : ''}</small>
         <div className={`bracket-team ${homeIsWinner ? 'winner' : ''}`}>
-          <span>{fixture.home || 'Home Team'}</span>
+          <span>
+            {homeLogo && (
+              <img
+                src={homeLogo}
+                alt=""
+                className="bracket-mini-logo"
+                onError={(e) => { e.currentTarget.style.display = 'none'; }}
+              />
+            )}
+            {fixture.home || 'Home Team'}
+          </span>
           <b>{homeScore}</b>
         </div>
         <div className={`bracket-team ${awayIsWinner ? 'winner' : ''}`}>
-          <span>{fixture.away || 'Away Team'}</span>
+          <span>
+            {awayLogo && (
+              <img
+                src={awayLogo}
+                alt=""
+                className="bracket-mini-logo"
+                onError={(e) => { e.currentTarget.style.display = 'none'; }}
+              />
+            )}
+            {fixture.away || 'Away Team'}
+          </span>
           <b>{awayScore}</b>
         </div>
         {isFinal && <div className="champion-badge"><Trophy size={16} /> {fixture.status === 'completed' ? 'CHAMPION DECIDED' : 'TROPHY MATCH'}</div>}
@@ -1476,7 +1584,7 @@ function AdminDashboard({ tournament, setActive }) {
 function SettingsEditor({ data, save }) { const [draft, setDraft] = useState(data.settings); const [saving, setSaving] = useState(false); useEffect(() => setDraft(data.settings), [data.settings]); const fields = [['name', 'Tournament name'], ['edition', 'Edition'], ['year', 'Year'], ['organizer', 'Organiser'], ['date', 'Tournament dates'], ['status', 'Public status'], ['entryFee', 'Entry fee (INR)', 'number'], ['format', 'Competition format'], ['matchType', 'Match format'], ['venue', 'Venue'], ['address', 'Address'], ['mapLink', 'Google Maps link'], ['about', 'About the tournament', 'textarea'], ['registrationNote', 'Registration note', 'textarea']]; const submit = async (event) => { event.preventDefault(); setSaving(true); try { await save({ ...data, settings: { ...draft, entryFee: Number(draft.entryFee || 0) } }); } finally { setSaving(false); } }; return <div className="admin-content"><form className="admin-form settings-form" onSubmit={submit}><div className="form-heading"><div><span>PUBLIC WEBSITE CONTENT</span><h2>Tournament settings</h2></div><button className="save-button" disabled={saving}><Save size={16} /> {saving ? 'Saving...' : 'Save changes'}</button></div><div className="form-grid">{fields.map(([key, label, type]) => <FormField key={key} label={label} type={type} value={draft[key] ?? ''} onChange={(value) => setDraft({ ...draft, [key]: value })} />)}<label className="toggle-field"><input type="checkbox" checked={Boolean(draft.registrationOpen)} onChange={(event) => setDraft({ ...draft, registrationOpen: event.target.checked })} /><span /><div><strong>Registration is open</strong><small>Shows an active registration status on the public page.</small></div></label></div></form></div>; }
 
 const collectionConfig = {
-  teams: { title: 'Teams', singular: 'team', icon: Users, fields: [['name', 'Team name'], ['shortName', 'Short name'], ['city', 'City / college'], ['group', 'Group']] },
+  teams: { title: 'Teams', singular: 'team', icon: Users, fields: [['name', 'Team / College Name'], ['logo', 'College Logo URL (Public image link, e.g. https://...)'], ['shortName', 'Short Name / Initials (Optional fallback, e.g. BBIT)'], ['city', 'City / College Location'], ['group', 'Group (e.g. Group A / Group B)']] },
   fixtures: { title: 'Fixtures & Live Match', singular: 'fixture', icon: CalendarDays, fields: [['date', 'Match date'], ['time', 'Kick-off time'], ['stage', 'Stage'], ['home', 'Home team'], ['away', 'Away team'], ['venue', 'Venue'], ['status', 'Status (scheduled / live / completed)'], ['minute', 'Match minute (e.g. 64\', HT, FT)'], ['liveNote', 'Live Ticker Commentary Note', 'textarea'], ['homeScore', 'Home score', 'number'], ['awayScore', 'Away score', 'number']] },
   standings: { title: 'Standings', singular: 'standing', icon: Table2, fields: [['team', 'Team'], ['played', 'Played', 'number'], ['wins', 'Wins', 'number'], ['draws', 'Draws', 'number'], ['losses', 'Losses', 'number'], ['gf', 'Goals for', 'number'], ['ga', 'Goals against', 'number'], ['points', 'Points', 'number']] },
   champions: { title: 'History', singular: 'champion record', icon: Trophy, fields: [['year', 'Year'], ['winner', 'Champion'], ['runnerUp', 'Runner-up']] },
@@ -1527,28 +1635,38 @@ function CollectionEditor({ collection, data, save }) {
           {items.length ? items.map((item, index) => (
             <article className={editing === item.id ? 'selected' : ''} key={item.id}>
               <span>{String(index + 1).padStart(2, '0')}</span>
-              <div>
-                <strong>{recordTitle(collection, item)}</strong>
-                <small>{recordSubtitle(collection, item)}</small>
-                {(collection === 'messages' || collection === 'registrations') && (
-                  <div className="submission-actions-row">
-                    {item.phone && (
-                      <a href={`tel:${item.phone}`} className="submission-action-btn" target="_blank" rel="noreferrer">
-                        <Phone size={12} /> Call {item.phone}
-                      </a>
-                    )}
-                    {item.phone && (
-                      <a href={`https://wa.me/91${item.phone.replace(/\D/g, '')}`} className="submission-action-btn wa-btn" target="_blank" rel="noreferrer">
-                        💬 WhatsApp
-                      </a>
-                    )}
-                    {item.email && (
-                      <a href={`mailto:${item.email}`} className="submission-action-btn" target="_blank" rel="noreferrer">
-                        ✉️ Email
-                      </a>
-                    )}
-                  </div>
+              <div className="record-main-col">
+                {collection === 'teams' && item.logo && (
+                  <img
+                    src={item.logo}
+                    alt=""
+                    className="record-thumb-crest"
+                    onError={(e) => { e.currentTarget.style.display = 'none'; }}
+                  />
                 )}
+                <div className="record-text-meta">
+                  <strong>{recordTitle(collection, item)}</strong>
+                  <small>{recordSubtitle(collection, item)}</small>
+                  {(collection === 'messages' || collection === 'registrations') && (
+                    <div className="submission-actions-row">
+                      {item.phone && (
+                        <a href={`tel:${item.phone}`} className="submission-action-btn" target="_blank" rel="noreferrer">
+                          <Phone size={12} /> Call {item.phone}
+                        </a>
+                      )}
+                      {item.phone && (
+                        <a href={`https://wa.me/91${item.phone.replace(/\D/g, '')}`} className="submission-action-btn wa-btn" target="_blank" rel="noreferrer">
+                          💬 WhatsApp
+                        </a>
+                      )}
+                      {item.email && (
+                        <a href={`mailto:${item.email}`} className="submission-action-btn" target="_blank" rel="noreferrer">
+                          ✉️ Email
+                        </a>
+                      )}
+                    </div>
+                  )}
+                </div>
               </div>
               <button onClick={() => startEdit(item)} aria-label="Edit"><Pencil size={16} /></button>
               <button className="delete-record" onClick={() => remove(item.id)} aria-label="Delete"><Trash2 size={16} /></button>
@@ -1572,6 +1690,30 @@ function CollectionEditor({ collection, data, save }) {
                 <button type="button" onClick={cancel}>Cancel</button>
               </div>
               {config.fields.map(([key, label, type]) => <FormField key={key} label={label} type={type} value={draft[key] ?? ''} onChange={(value) => setDraft({ ...draft, [key]: value })} />)}
+              {collection === 'teams' && draft.logo && (
+                <div className="team-logo-preview">
+                  <small>COLLEGE LOGO PREVIEW</small>
+                  <div className="team-preview-crest">
+                    <img
+                      src={draft.logo}
+                      alt="College logo preview"
+                      onError={(e) => {
+                        e.currentTarget.style.display = 'none';
+                        const errEl = e.currentTarget.parentElement?.querySelector('.team-preview-error');
+                        if (errEl) errEl.style.display = 'block';
+                      }}
+                      onLoad={(e) => {
+                        e.currentTarget.style.display = 'block';
+                        const errEl = e.currentTarget.parentElement?.querySelector('.team-preview-error');
+                        if (errEl) errEl.style.display = 'none';
+                      }}
+                    />
+                    <span className="team-preview-error" style={{ display: 'none', color: '#ff6b6b', fontSize: '11px', textAlign: 'center', padding: '4px' }}>
+                      ⚠️ Image failed to load. Please check that the URL is a direct, public image link.
+                    </span>
+                  </div>
+                </div>
+              )}
               {collection === 'fixtures' && <FixtureEventsEditor draft={draft} setDraft={setDraft} />}
               {collection === 'dignitaries' && draft.image && (
                 <div className="patron-image-preview">
@@ -1663,7 +1805,7 @@ function recordSubtitle(collection, item) {
   if (collection === 'fixtures') return [item.stage, item.date, item.time].filter(Boolean).join(' / ') || 'Match details';
   if (collection === 'standings') return `${item.points || 0} points / ${item.played || 0} played`;
   if (collection === 'champions') return item.year || 'Year TBA';
-  if (collection === 'teams') return [item.city, item.group].filter(Boolean).join(' / ') || 'Team profile';
+  if (collection === 'teams') return [item.city, item.group, item.shortName ? `[${item.shortName}]` : ''].filter(Boolean).join(' • ') || 'Team profile';
   if (collection === 'dignitaries') return item.role || 'Patron & Leader';
   if (collection === 'messages') return [item.submittedAt ? `[${item.submittedAt}]` : '', item.phone ? `Tel: ${item.phone}` : '', item.message].filter(Boolean).join(' • ') || 'Message details';
   if (collection === 'registrations') return [item.submittedAt ? `[${item.submittedAt}]` : '', `Captain: ${item.captain || 'N/A'}`, `Tel: ${item.phone || 'N/A'}`, `Email: ${item.email || 'N/A'}`, `Squad: ${item.count || '18'} players`].filter(Boolean).join(' • ');
