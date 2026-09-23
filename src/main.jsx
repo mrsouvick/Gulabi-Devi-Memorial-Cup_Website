@@ -953,7 +953,7 @@ function PublicFooter({ settings, go }) {
           <span className="footer-copyright-sep">·</span>
           <span>Organized by Budge Budge Institute of Technology (BBIT)</span>
           <span className="footer-copyright-sep">·</span>
-          <span>All rights reserved.</span>
+          <span>Developed by Souvick Kumar Halder</span>
         </div>
       </div>
       <div className="footer-accent-line" aria-hidden="true" />
