@@ -4,7 +4,7 @@ import {
   ArrowUpRight, CalendarDays, CheckCircle2, ChevronLeft, ChevronRight, CircleAlert,
   Cloud, ExternalLink, History, LayoutDashboard, LockKeyhole, LogOut, MapPin, Menu,
   Pencil, Phone, Plus, Radio, Save, Settings, ShieldCheck, Table2, Trophy, Trash2, Users, X,
-  Zap, Play, Pause, Square, Minus
+  Zap, Play, Pause, Square, Minus, Timer, Clock, RotateCcw, FastForward
 } from 'lucide-react';
 import { defaultTournament, getSession, isCloudEnabled, loadTournament, makeId, saveTournament, signIn, signOut, submitPublicRegistration, submitPublicMessage, subscribeToRealtime } from './lib/tournamentStore';
 import './styles.css';
@@ -149,6 +149,163 @@ function PublicSite({ tournament, route, go, notice, setNotice, save }) {
   </div>;
 }
 
+// 60-Minute Professional Tournament Timer Helpers (Two 30-minute halves)
+export function calculateElapsedSeconds(fixture, now = Date.now()) {
+  if (!fixture) return 0;
+  const base = Number(fixture.timerBaseSeconds) || 0;
+  if (!fixture.timerRunning || !fixture.timerStartedAt) {
+    return base;
+  }
+  const started = new Date(fixture.timerStartedAt).getTime();
+  if (isNaN(started)) return base;
+  const diff = Math.max(0, Math.floor((now - started) / 1000));
+  return base + diff;
+}
+
+export function formatClockTime(seconds) {
+  const m = Math.floor(seconds / 60);
+  const s = seconds % 60;
+  return `${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`;
+}
+
+export function getMatchMinuteString(totalSeconds, period, status) {
+  if (status === 'completed' || period === 'FT') return 'FT';
+  if (period === 'HT') return 'HT';
+
+  if (period === '1H') {
+    if (totalSeconds > 1800) {
+      const extraMin = Math.ceil((totalSeconds - 1800) / 60);
+      return `30'+${extraMin}'`;
+    }
+    const min = Math.min(30, Math.max(1, Math.floor(totalSeconds / 60) + 1));
+    return `${min}'`;
+  }
+
+  if (period === '2H') {
+    if (totalSeconds > 3600) {
+      const extraMin = Math.ceil((totalSeconds - 3600) / 60);
+      return `60'+${extraMin}'`;
+    }
+    const min = Math.min(60, Math.max(31, Math.floor(totalSeconds / 60) + 1));
+    return `${min}'`;
+  }
+
+  const min = Math.min(60, Math.max(1, Math.floor(totalSeconds / 60) + 1));
+  return `${min}'`;
+}
+
+export function useMatchClock(fixture) {
+  const [now, setNow] = useState(() => Date.now());
+
+  useEffect(() => {
+    if (!fixture?.timerRunning) return;
+    const interval = setInterval(() => {
+      setNow(Date.now());
+    }, 1000);
+    return () => clearInterval(interval);
+  }, [fixture?.timerRunning, fixture?.timerStartedAt]);
+
+  return useMemo(() => {
+    if (!fixture) {
+      return {
+        clock: "00:00",
+        minute: "0'",
+        period: null,
+        periodLabel: "Scheduled",
+        isRunning: false,
+        totalSeconds: 0
+      };
+    }
+
+    const { status, timerRunning, period, minute: manualMinute } = fixture;
+    const totalSeconds = calculateElapsedSeconds(fixture, now);
+
+    let activePeriod = period;
+    if (!activePeriod) {
+      if (status === 'completed' || manualMinute === 'FT') activePeriod = 'FT';
+      else if (manualMinute === 'HT') activePeriod = 'HT';
+      else if (status === 'live') activePeriod = totalSeconds >= 1800 ? '2H' : '1H';
+    }
+
+    if (status === 'completed' || activePeriod === 'FT') {
+      return {
+        clock: "60:00",
+        minute: "FT",
+        period: "FT",
+        periodLabel: "Full Time (60m)",
+        isRunning: false,
+        totalSeconds: 3600
+      };
+    }
+
+    if (activePeriod === 'HT') {
+      return {
+        clock: "30:00",
+        minute: "HT",
+        period: "HT",
+        periodLabel: "Half-Time Break",
+        isRunning: false,
+        totalSeconds: 1800
+      };
+    }
+
+    const clock = formatClockTime(totalSeconds);
+    const minuteStr = getMatchMinuteString(totalSeconds, activePeriod, status);
+
+    let periodLabel = "Scheduled";
+    if (activePeriod === '1H') periodLabel = "1st Half (0–30m)";
+    else if (activePeriod === '2H') periodLabel = "2nd Half (30–60m)";
+
+    return {
+      clock,
+      minute: manualMinute && !['1H', '2H'].includes(activePeriod) ? manualMinute : minuteStr,
+      period: activePeriod,
+      periodLabel,
+      isRunning: Boolean(timerRunning),
+      totalSeconds
+    };
+  }, [fixture, now]);
+}
+
+function MatchTimerBadge({ fixture, size = 'normal', showPeriod = true }) {
+  const { clock, minute, period, isRunning } = useMatchClock(fixture);
+  const isCompleted = fixture?.status === 'completed' || period === 'FT';
+  const isHT = period === 'HT' || fixture?.minute === 'HT';
+
+  if (isCompleted) {
+    return (
+      <span className={`match-timer-badge ${size} completed`}>
+        <span className="timer-badge-text">FT (60')</span>
+      </span>
+    );
+  }
+
+  if (isHT) {
+    return (
+      <span className={`match-timer-badge ${size} ht`}>
+        <Pause size={size === 'compact' ? 10 : 12} />
+        <span className="timer-badge-text">HALF-TIME (30:00)</span>
+      </span>
+    );
+  }
+
+  if (fixture?.status === 'live') {
+    return (
+      <span className={`match-timer-badge ${size} ${isRunning ? 'running' : 'paused'}`}>
+        <span className={`timer-pulse-dot ${isRunning ? 'pulse' : 'frozen'}`} />
+        <strong className="timer-clock-digits">{clock}</strong>
+        <span className="timer-minute-tag">({minute})</span>
+        {showPeriod && size !== 'compact' && (
+          <span className="timer-period-tag">{period === '2H' ? '2ND HALF' : '1ST HALF'}</span>
+        )}
+        {!isRunning && <span className="timer-paused-tag">PAUSED</span>}
+      </span>
+    );
+  }
+
+  return null;
+}
+
 function LiveMatchdayBanner({ fixtures = [], go }) {
   const liveFixture = useMemo(() => fixtures.find(f => f.status === 'live'), [fixtures]);
   if (!liveFixture) return null;
@@ -164,7 +321,7 @@ function LiveMatchdayBanner({ fixtures = [], go }) {
           <span>{liveFixture.home}</span>
           <span className="live-score-pill">{liveFixture.homeScore ?? 0} - {liveFixture.awayScore ?? 0}</span>
           <span>{liveFixture.away}</span>
-          {liveFixture.minute && <span className="live-minute-tag">{liveFixture.minute}</span>}
+          <MatchTimerBadge fixture={liveFixture} size="compact" />
         </div>
         {liveFixture.liveNote && (
           <div className="live-ticker-text">
@@ -311,9 +468,13 @@ function FixturesPage({ fixtures, go }) {
                 <article className={`fixture-card-rich ${isLive ? 'is-live' : ''}`} key={fixture.id}>
                   <div className="fixture-card-head">
                     <span className="fixture-stage-badge">{fixture.stage || 'Match'}</span>
-                    <span className={`fixture-status-pill ${fixture.status || 'scheduled'}`}>
-                      {isCompleted ? 'FINAL SCORE' : isLive ? `● LIVE MATCH ${fixture.minute ? `(${fixture.minute})` : ''}` : 'SCHEDULED'}
-                    </span>
+                    {isLive ? (
+                      <MatchTimerBadge fixture={fixture} size="normal" />
+                    ) : (
+                      <span className={`fixture-status-pill ${fixture.status || 'scheduled'}`}>
+                        {isCompleted ? 'FINAL SCORE' : 'SCHEDULED'}
+                      </span>
+                    )}
                   </div>
                   <div className="fixture-card-teams">
                     <div className="team-side home-side">
@@ -321,7 +482,10 @@ function FixturesPage({ fixtures, go }) {
                     </div>
                     <div className="score-box">
                       {isCompleted || isLive ? (
-                        <span className="final-score">{fixture.homeScore ?? 0} - {fixture.awayScore ?? 0}</span>
+                        <div className="score-box-inner">
+                          <span className="final-score">{fixture.homeScore ?? 0} - {fixture.awayScore ?? 0}</span>
+                          {isLive && <MatchTimerBadge fixture={fixture} size="compact" showPeriod={false} />}
+                        </div>
                       ) : (
                         <span className="vs-tag">VS</span>
                       )}
@@ -812,6 +976,8 @@ function LiveMatchController({ tournament, save }) {
     else setDraft({});
   }, [selectedMatch]);
 
+  const clockData = useMatchClock(draft);
+
   const updateMatchState = async (updatedFields) => {
     if (!selectedId) return;
     setSaving(true);
@@ -835,15 +1001,120 @@ function LiveMatchController({ tournament, save }) {
     updateMatchState({ [teamKey]: newScore });
   };
 
-  const setPresetMinute = (minStr) => {
-    updateMatchState({ minute: minStr });
+  // 1st Half Kick-off: 00:00 to 30:00
+  const startFirstHalf = () => {
+    updateMatchState({
+      status: 'live',
+      period: '1H',
+      timerRunning: true,
+      timerBaseSeconds: 0,
+      timerStartedAt: new Date().toISOString(),
+      minute: "1'"
+    });
   };
 
-  const setStatus = (statusStr) => {
-    const updates = { status: statusStr };
-    if (statusStr === 'live' && !draft.minute) updates.minute = "1'";
-    if (statusStr === 'completed') updates.minute = 'FT';
+  // Half-Time (HT): Pauses and freezes at 30:00
+  const setHalfTime = () => {
+    updateMatchState({
+      status: 'live',
+      period: 'HT',
+      timerRunning: false,
+      timerBaseSeconds: 1800,
+      timerStartedAt: null,
+      minute: 'HT'
+    });
+  };
+
+  // 2nd Half Kick-off: Starts from 30:00 up to 60:00
+  const startSecondHalf = () => {
+    updateMatchState({
+      status: 'live',
+      period: '2H',
+      timerRunning: true,
+      timerBaseSeconds: 1800,
+      timerStartedAt: new Date().toISOString(),
+      minute: "31'"
+    });
+  };
+
+  // Pause / Resume Toggle for injury/stoppage breaks
+  const togglePauseResume = () => {
+    if (draft.timerRunning) {
+      const currentSeconds = calculateElapsedSeconds(draft);
+      updateMatchState({
+        timerRunning: false,
+        timerBaseSeconds: currentSeconds,
+        timerStartedAt: null,
+        minute: getMatchMinuteString(currentSeconds, draft.period || '1H', draft.status)
+      });
+    } else {
+      const currentBase = Number(draft.timerBaseSeconds) || 0;
+      updateMatchState({
+        status: 'live',
+        timerRunning: true,
+        timerStartedAt: new Date().toISOString(),
+        minute: getMatchMinuteString(currentBase, draft.period || (currentBase >= 1800 ? '2H' : '1H'), 'live')
+      });
+    }
+  };
+
+  // Full-Time (FT): Concludes match at 60:00
+  const setFullTime = () => {
+    updateMatchState({
+      status: 'completed',
+      period: 'FT',
+      timerRunning: false,
+      timerBaseSeconds: 3600,
+      timerStartedAt: null,
+      minute: 'FT'
+    });
+  };
+
+  // Nudge timer by seconds (+1m, -1m, +30s, -30s)
+  const nudgeSeconds = (deltaSeconds) => {
+    const currentSeconds = calculateElapsedSeconds(draft);
+    const newBase = Math.max(0, currentSeconds + deltaSeconds);
+    const newPeriod = draft.period || (newBase >= 1800 ? '2H' : '1H');
+    const updates = {
+      timerBaseSeconds: newBase,
+      minute: getMatchMinuteString(newBase, newPeriod, draft.status)
+    };
+    if (draft.timerRunning) {
+      updates.timerStartedAt = new Date().toISOString();
+    }
     updateMatchState(updates);
+  };
+
+  // Reset current half
+  const resetHalf = () => {
+    const resetBase = draft.period === '2H' ? 1800 : 0;
+    const updates = {
+      timerBaseSeconds: resetBase,
+      minute: resetBase === 1800 ? "31'" : "1'"
+    };
+    if (draft.timerRunning) {
+      updates.timerStartedAt = new Date().toISOString();
+    }
+    updateMatchState(updates);
+  };
+
+  const setPresetMinute = (minStr) => {
+    if (minStr === 'HT') {
+      setHalfTime();
+    } else if (minStr === 'FT') {
+      setFullTime();
+    } else {
+      const match = minStr.match(/^(\d+)/);
+      const minNum = match ? parseInt(match[1], 10) : null;
+      const updates = { minute: minStr };
+      if (minNum !== null) {
+        updates.timerBaseSeconds = Math.max(0, (minNum - 1) * 60);
+        if (draft.timerRunning) updates.timerStartedAt = new Date().toISOString();
+        if (minNum > 30 && draft.period !== '2H') updates.period = '2H';
+        else if (minNum <= 30 && draft.period !== '1H') updates.period = '1H';
+      }
+      updateMatchState(updates);
+    }
   };
 
   const addEvent = (eventObj) => {
@@ -858,17 +1129,24 @@ function LiveMatchController({ tournament, save }) {
     updateMatchState({ events: nextEvents });
   };
 
+  // 60-Minute Match Progress Percentage
+  const progressPercent = Math.min(100, Math.max(0, (clockData.totalSeconds / 3600) * 100));
+
   return (
     <div className="admin-content live-controller-shell">
       <section className="live-controller-header">
         <div>
           <span className="live-kicker"><Radio size={14} /> DEDICATED LIVE MATCHDAY CONSOLE</span>
           <h2>PRO MATCH CONTROL CENTRE</h2>
-          <p>Control live scores, minute clock, goal ticker commentary, and cards pitch-side with instant public sync.</p>
+          <p>Official 60-minute match timer control (two 30-min halves), pitch-side scores, goal timeline, and public sync.</p>
         </div>
         {draft.status === 'live' ? (
           <div className="live-status-pill-big live-active">
-            <span className="live-dot" /> LIVE ON AIR ({draft.minute || 'LIVE'})
+            <span className="live-dot" /> LIVE ON AIR ({clockData.clock} • {clockData.periodLabel})
+          </div>
+        ) : draft.status === 'completed' ? (
+          <div className="live-status-pill-big live-completed">
+            🏁 MATCH COMPLETED (FT)
           </div>
         ) : (
           <div className="live-status-pill-big">STANDBY / NO LIVE MATCH</div>
@@ -891,18 +1169,121 @@ function LiveMatchController({ tournament, save }) {
 
       {selectedMatch ? (
         <div className="live-control-dashboard">
-          <div className="live-action-buttons-row">
-            <button className={`status-btn live-btn ${draft.status === 'live' ? 'active' : ''}`} onClick={() => setStatus('live')} disabled={saving}>
-              <Play size={16} /> START / RESUME LIVE MATCH
-            </button>
-            <button className={`status-btn pause-btn ${draft.minute === 'HT' ? 'active' : ''}`} onClick={() => setPresetMinute('HT')} disabled={saving}>
-              <Pause size={16} /> HALF-TIME (HT)
-            </button>
-            <button className={`status-btn ft-btn ${draft.status === 'completed' ? 'active' : ''}`} onClick={() => setStatus('completed')} disabled={saving}>
-              <Square size={16} /> FULL-TIME (END MATCH)
-            </button>
+
+          {/* 60-Minute Stadium Master Timer Board */}
+          <div className="stadium-match-timer-panel">
+            <div className="stadium-timer-top">
+              <div className="stadium-timer-phase-badge">
+                <Timer size={15} />
+                <span>{clockData.periodLabel.toUpperCase()}</span>
+                {clockData.isRunning ? (
+                  <span className="live-indicator-pill"><span className="pulse-dot" /> CLOCK TICKING</span>
+                ) : (
+                  <span className="paused-indicator-pill">CLOCK PAUSED</span>
+                )}
+              </div>
+              <div className="stadium-timer-meta">
+                <span>TOTAL: 60 MIN (2 × 30M HALVES)</span>
+              </div>
+            </div>
+
+            {/* Stadium Giant Digital Clock Display */}
+            <div className="stadium-giant-clock">
+              <div className="clock-digits-wrap">
+                <span className="clock-digits">{clockData.clock}</span>
+                <span className="clock-minute-badge">{clockData.minute}</span>
+              </div>
+
+              {/* 60-Minute Timeline Progress Bar with Half-Time Mark */}
+              <div className="match-progress-container">
+                <div className="match-progress-bar" style={{ width: `${progressPercent}%` }} />
+                <div className="progress-markers">
+                  <span className="marker-label">0' (KO)</span>
+                  <span className="marker-label marker-ht">30' (HALF-TIME)</span>
+                  <span className="marker-label marker-ft">60' (FULL-TIME)</span>
+                </div>
+              </div>
+            </div>
+
+            {/* Professional Football Match Actions */}
+            <div className="stadium-timer-actions-grid">
+              <button
+                className={`timer-action-btn start-1h-btn ${draft.period === '1H' && draft.timerRunning ? 'active-glow' : ''}`}
+                onClick={startFirstHalf}
+                disabled={saving}
+              >
+                <Play size={16} />
+                <div>
+                  <strong>START 1ST HALF</strong>
+                  <small>0:00 – 30:00</small>
+                </div>
+              </button>
+
+              <button
+                className={`timer-action-btn ht-btn ${draft.period === 'HT' ? 'active-glow' : ''}`}
+                onClick={setHalfTime}
+                disabled={saving}
+              >
+                <Pause size={16} />
+                <div>
+                  <strong>HALF-TIME (HT)</strong>
+                  <small>STOP CLOCK AT 30:00</small>
+                </div>
+              </button>
+
+              <button
+                className={`timer-action-btn start-2h-btn ${draft.period === '2H' && draft.timerRunning ? 'active-glow' : ''}`}
+                onClick={startSecondHalf}
+                disabled={saving}
+              >
+                <FastForward size={16} />
+                <div>
+                  <strong>START 2ND HALF</strong>
+                  <small>RESUME 30:00 – 60:00</small>
+                </div>
+              </button>
+
+              <button
+                className={`timer-action-btn pause-resume-btn ${draft.timerRunning ? 'is-running' : 'is-paused'}`}
+                onClick={togglePauseResume}
+                disabled={saving}
+              >
+                {draft.timerRunning ? <Pause size={16} /> : <Play size={16} />}
+                <div>
+                  <strong>{draft.timerRunning ? 'PAUSE CLOCK' : 'RESUME CLOCK'}</strong>
+                  <small>{draft.timerRunning ? 'Stop for injury/break' : 'Continue ticking'}</small>
+                </div>
+              </button>
+
+              <button
+                className={`timer-action-btn ft-btn ${draft.status === 'completed' || draft.period === 'FT' ? 'active-glow' : ''}`}
+                onClick={setFullTime}
+                disabled={saving}
+              >
+                <Square size={16} />
+                <div>
+                  <strong>FULL-TIME (FT)</strong>
+                  <small>END MATCH AT 60:00</small>
+                </div>
+              </button>
+            </div>
+
+            {/* Precision Referee Stoppage Nudge Controls */}
+            <div className="stadium-timer-nudges">
+              <span className="nudge-title"><Clock size={13} /> REFEREE TIME ADJUSTMENT:</span>
+              <div className="nudge-buttons-row">
+                <button type="button" onClick={() => nudgeSeconds(60)} disabled={saving} title="Add 1 minute stoppage">+1 MIN</button>
+                <button type="button" onClick={() => nudgeSeconds(-60)} disabled={saving} title="Subtract 1 minute">-1 MIN</button>
+                <button type="button" onClick={() => nudgeSeconds(30)} disabled={saving} title="Add 30 seconds">+30 SEC</button>
+                <button type="button" onClick={() => nudgeSeconds(-30)} disabled={saving} title="Subtract 30 seconds">-30 SEC</button>
+                <button type="button" onClick={resetHalf} disabled={saving} title="Reset current half clock" className="reset-nudge">
+                  <RotateCcw size={12} /> RESET HALF
+                </button>
+              </div>
+            </div>
           </div>
 
+          {/* Live Scoreboard Console */}
           <div className="live-scoreboard-console">
             <div className="scoreboard-team-box home-box">
               <span className="team-role-tag">HOME TEAM</span>
@@ -916,12 +1297,20 @@ function LiveMatchController({ tournament, save }) {
 
             <div className="scoreboard-center-box">
               <span className="vs-badge">VS</span>
+              <div className="center-timer-pill">
+                <MatchTimerBadge fixture={draft} size="large" />
+              </div>
               <div className="clock-input-box">
-                <small>MATCH MINUTE</small>
-                <input type="text" value={draft.minute || ''} onChange={e => updateMatchState({ minute: e.target.value })} placeholder="e.g. 64', HT, 90+2'" />
+                <small>MANUAL MINUTE OVERRIDE</small>
+                <input
+                  type="text"
+                  value={draft.minute || clockData.minute}
+                  onChange={e => updateMatchState({ minute: e.target.value })}
+                  placeholder="e.g. 28', HT, 55', FT"
+                />
               </div>
               <div className="minute-presets">
-                {["1'", "15'", "30'", "45'", "HT", "46'", "60'", "75'", "90'", "FT"].map(m => (
+                {["1'", "15'", "30'", "HT", "31'", "45'", "60'", "FT"].map(m => (
                   <button key={m} className={draft.minute === m ? 'active' : ''} onClick={() => setPresetMinute(m)}>{m}</button>
                 ))}
               </div>
@@ -950,21 +1339,21 @@ function LiveMatchController({ tournament, save }) {
             <div className="commentary-presets">
               <small>QUICK PRESETS:</small>
               {[
-                "KICK-OFF! Match is underway at BBIT Ground.",
+                "KICK-OFF! 1st Half is underway at BBIT Ground (0-30m).",
                 `GOAL FOR ${draft.home || 'HOME'}! Outstanding strike!`,
                 `GOAL FOR ${draft.away || 'AWAY'}! What a finish!`,
                 "GREAT SAVE by the goalkeeper to keep it level!",
                 "YELLOW CARD issued after a tactical foul.",
-                "HALF-TIME at BBIT Ground. Teams heading to lockers.",
-                "SECOND HALF IS UNDERWAY!",
-                "FULL TIME! Match concludes after intense battle!"
+                "HALF-TIME at BBIT Ground (30m). Teams heading to lockers.",
+                "SECOND HALF IS UNDERWAY (30-60m)!",
+                "FULL TIME! Match concludes after intense 60-minute battle!"
               ].map((preset, idx) => (
                 <button key={idx} onClick={() => updateMatchState({ liveNote: preset })}>{preset}</button>
               ))}
             </div>
           </div>
 
-          <LiveMatchEventsLogger draft={draft} addEvent={addEvent} removeEvent={removeEvent} />
+          <LiveMatchEventsLogger draft={draft} currentMinute={clockData.minute} addEvent={addEvent} removeEvent={removeEvent} />
 
           <div className="live-public-preview-monitor">
             <small>PUBLIC WEBSITE LIVE PREVIEW MONITOR (WHAT VISITORS SEE NOW)</small>
@@ -978,7 +1367,7 @@ function LiveMatchController({ tournament, save }) {
                   <span>{draft.home || 'Home'}</span>
                   <span className="live-score-pill">{draft.homeScore ?? 0} - {draft.awayScore ?? 0}</span>
                   <span>{draft.away || 'Away'}</span>
-                  {draft.minute && <span className="live-minute-tag">{draft.minute}</span>}
+                  <MatchTimerBadge fixture={draft} size="compact" />
                 </div>
                 {draft.liveNote && (
                   <div className="live-ticker-text">
@@ -1001,7 +1390,7 @@ function LiveMatchController({ tournament, save }) {
   );
 }
 
-function LiveMatchEventsLogger({ draft, addEvent, removeEvent }) {
+function LiveMatchEventsLogger({ draft, currentMinute, addEvent, removeEvent }) {
   const [min, setMin] = useState('');
   const [type, setType] = useState('goal');
   const [team, setTeam] = useState('home');
@@ -1010,7 +1399,8 @@ function LiveMatchEventsLogger({ draft, addEvent, removeEvent }) {
   const submitEvent = (e) => {
     e.preventDefault();
     if (!player) return;
-    addEvent({ minute: min || "•", type, team, player });
+    const finalMin = min.trim() || currentMinute || "•";
+    addEvent({ minute: finalMin, type, team, player });
     setMin('');
     setPlayer('');
   };
@@ -1022,7 +1412,12 @@ function LiveMatchEventsLogger({ draft, addEvent, removeEvent }) {
       <h3>⚽ LOG MATCH EVENT (GOALS & CARDS)</h3>
       <form onSubmit={submitEvent} className="events-logger-form">
         <label>Minute
-          <input type="text" placeholder="e.g. 68'" value={min} onChange={e => setMin(e.target.value)} />
+          <input
+            type="text"
+            placeholder={currentMinute ? `Auto: ${currentMinute}` : "e.g. 24'"}
+            value={min}
+            onChange={e => setMin(e.target.value)}
+          />
         </label>
         <label>Event Type
           <select value={type} onChange={e => setType(e.target.value)}>

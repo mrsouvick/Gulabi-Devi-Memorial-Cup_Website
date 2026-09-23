@@ -1148,3 +1148,483 @@
   }
 }
 
+/* ============================================================
+   60-MINUTE PROFESSIONAL FOOTBALL MATCH TIMER & STADIUM CONSOLE
+   ============================================================ */
+
+/* Reusable Match Timer Badge */
+.match-timer-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  font-family: 'DM Mono', monospace;
+  font-weight: 700;
+  border-radius: 4px;
+  letter-spacing: 0.05em;
+  transition: all 0.2s ease;
+}
+
+.match-timer-badge.normal {
+  padding: 5px 12px;
+  font-size: 11px;
+}
+
+.match-timer-badge.compact {
+  padding: 3px 8px;
+  font-size: 10px;
+}
+
+.match-timer-badge.large {
+  padding: 8px 16px;
+  font-size: 14px;
+}
+
+.match-timer-badge.running {
+  background: rgba(238, 70, 70, 0.16);
+  border: 1.5px solid #ee4646;
+  color: #fff;
+  box-shadow: 0 0 14px rgba(238, 70, 70, 0.25);
+}
+
+.match-timer-badge.paused {
+  background: rgba(228, 179, 84, 0.16);
+  border: 1.5px solid #e4b354;
+  color: #e4b354;
+}
+
+.match-timer-badge.ht {
+  background: rgba(228, 179, 84, 0.22);
+  border: 1.5px solid #e4b354;
+  color: #ffd875;
+}
+
+.match-timer-badge.completed {
+  background: rgba(126, 145, 131, 0.18);
+  border: 1.5px solid #7e9183;
+  color: #cfd9d1;
+}
+
+.timer-pulse-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  display: inline-block;
+  flex-shrink: 0;
+}
+
+.timer-pulse-dot.pulse {
+  background: #ee4646;
+  animation: timerPulse 1.2s infinite ease-in-out;
+}
+
+.timer-pulse-dot.frozen {
+  background: #e4b354;
+}
+
+@keyframes timerPulse {
+  0% {
+    transform: scale(0.9);
+    box-shadow: 0 0 0 0 rgba(238, 70, 70, 0.8);
+  }
+  70% {
+    transform: scale(1.15);
+    box-shadow: 0 0 0 6px rgba(238, 70, 70, 0);
+  }
+  100% {
+    transform: scale(0.9);
+    box-shadow: 0 0 0 0 rgba(238, 70, 70, 0);
+  }
+}
+
+.timer-clock-digits {
+  color: var(--lime);
+  font-size: 1.15em;
+  letter-spacing: 0.08em;
+}
+
+.timer-minute-tag {
+  color: #ee4646;
+  font-weight: 800;
+}
+
+.match-timer-badge.ht .timer-clock-digits,
+.match-timer-badge.ht .timer-minute-tag {
+  color: #ffd875;
+}
+
+.timer-period-tag {
+  background: rgba(204, 250, 42, 0.15);
+  color: var(--lime);
+  padding: 1px 5px;
+  border-radius: 2px;
+  font-size: 9px;
+}
+
+.timer-paused-tag {
+  background: rgba(228, 179, 84, 0.25);
+  color: #ffd875;
+  padding: 1px 5px;
+  border-radius: 2px;
+  font-size: 8px;
+  font-weight: 800;
+}
+
+/* Fixtures Score Box Inner Timer */
+.score-box-inner {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+}
+
+.center-timer-pill {
+  margin: 6px 0;
+}
+
+/* Stadium Master Timer Panel in Admin Console */
+.stadium-match-timer-panel {
+  background: radial-gradient(circle at 50% 20%, #0d271c, #06140e 85%);
+  border: 2px solid #1f4735;
+  border-radius: 10px;
+  padding: 24px;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.4), inset 0 1px 0 rgba(255, 255, 255, 0.08);
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.stadium-timer-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 12px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.07);
+  padding-bottom: 14px;
+}
+
+.stadium-timer-phase-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  color: var(--gold);
+  font-family: 'DM Mono', monospace;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+}
+
+.live-indicator-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: rgba(238, 70, 70, 0.2);
+  border: 1px solid #ee4646;
+  color: #ff6e6e;
+  padding: 3px 8px;
+  border-radius: 3px;
+  font-size: 9px;
+}
+
+.live-indicator-pill .pulse-dot {
+  width: 6px;
+  height: 6px;
+  background: #ee4646;
+  border-radius: 50%;
+  animation: timerPulse 1.2s infinite ease-in-out;
+}
+
+.paused-indicator-pill {
+  background: rgba(228, 179, 84, 0.2);
+  border: 1px solid #e4b354;
+  color: #ffd875;
+  padding: 3px 8px;
+  border-radius: 3px;
+  font-size: 9px;
+}
+
+.stadium-timer-meta {
+  color: #7b9485;
+  font-family: 'DM Mono', monospace;
+  font-size: 10px;
+  letter-spacing: 0.08em;
+}
+
+/* Giant Stadium Clock Readout */
+.stadium-giant-clock {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 10px 0;
+  gap: 14px;
+}
+
+.clock-digits-wrap {
+  display: flex;
+  align-items: baseline;
+  gap: 16px;
+}
+
+.clock-digits {
+  font-family: 'DM Mono', monospace;
+  font-size: clamp(52px, 8vw, 76px);
+  font-weight: 900;
+  color: var(--lime);
+  letter-spacing: 0.08em;
+  text-shadow: 0 0 24px rgba(204, 250, 42, 0.35);
+  line-height: 1;
+}
+
+.clock-minute-badge {
+  font-family: 'Barlow Condensed', sans-serif;
+  font-size: 32px;
+  font-weight: 800;
+  background: #ee4646;
+  color: #fff;
+  padding: 4px 12px;
+  border-radius: 4px;
+  line-height: 1;
+  box-shadow: 0 4px 12px rgba(238, 70, 70, 0.4);
+}
+
+/* 60-Minute Progress Bar & Halves Markers */
+.match-progress-container {
+  width: 100%;
+  max-width: 680px;
+  background: #091711;
+  border: 1px solid #204533;
+  border-radius: 6px;
+  height: 10px;
+  position: relative;
+  overflow: visible;
+  margin-top: 6px;
+}
+
+.match-progress-bar {
+  height: 100%;
+  background: linear-gradient(90deg, #1ea754, var(--lime) 50%, #ee4646 100%);
+  border-radius: 5px;
+  transition: width 0.3s ease;
+  box-shadow: 0 0 10px rgba(204, 250, 42, 0.5);
+}
+
+.progress-markers {
+  display: flex;
+  justify-content: space-between;
+  margin-top: 8px;
+  font-family: 'DM Mono', monospace;
+  font-size: 9px;
+  color: #6d8576;
+}
+
+.marker-ht {
+  color: var(--gold);
+  font-weight: 700;
+}
+
+.marker-ft {
+  color: #ff6e6e;
+  font-weight: 700;
+}
+
+/* Professional Timer Actions Grid */
+.stadium-timer-actions-grid {
+  display: grid;
+  grid-template-columns: repeat(5, 1fr);
+  gap: 10px;
+}
+
+.timer-action-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  padding: 14px 12px;
+  border-radius: 6px;
+  border: 2px solid transparent;
+  cursor: pointer;
+  transition: all 0.18s ease;
+  text-align: left;
+}
+
+.timer-action-btn div {
+  display: flex;
+  flex-direction: column;
+}
+
+.timer-action-btn strong {
+  font-family: 'Barlow Condensed', sans-serif;
+  font-size: 16px;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  line-height: 1.1;
+}
+
+.timer-action-btn small {
+  font-family: 'DM Mono', monospace;
+  font-size: 9px;
+  letter-spacing: 0.05em;
+  opacity: 0.85;
+  margin-top: 2px;
+}
+
+.timer-action-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+  transform: none !important;
+}
+
+.timer-action-btn:not(:disabled):hover {
+  transform: translateY(-2px);
+  filter: brightness(1.1);
+}
+
+/* Start 1st Half button */
+.timer-action-btn.start-1h-btn {
+  background: #15803d;
+  color: #fff;
+  border-color: #22c55e;
+}
+
+.timer-action-btn.start-1h-btn.active-glow {
+  box-shadow: 0 0 16px rgba(34, 197, 94, 0.5);
+  border-color: #86efac;
+}
+
+/* Half Time HT button */
+.timer-action-btn.ht-btn {
+  background: #b45309;
+  color: #fff;
+  border-color: #f59e0b;
+}
+
+.timer-action-btn.ht-btn.active-glow {
+  box-shadow: 0 0 16px rgba(245, 158, 11, 0.55);
+  border-color: #fde68a;
+}
+
+/* Start 2nd Half button */
+.timer-action-btn.start-2h-btn {
+  background: #047857;
+  color: #fff;
+  border-color: #10b981;
+}
+
+.timer-action-btn.start-2h-btn.active-glow {
+  box-shadow: 0 0 16px rgba(16, 185, 129, 0.5);
+  border-color: #6ee7b7;
+}
+
+/* Pause / Resume button */
+.timer-action-btn.pause-resume-btn.is-running {
+  background: #374151;
+  color: #f3f4f6;
+  border-color: #6b7280;
+}
+
+.timer-action-btn.pause-resume-btn.is-paused {
+  background: #1e3a8a;
+  color: #fff;
+  border-color: #3b82f6;
+  box-shadow: 0 0 12px rgba(59, 130, 246, 0.35);
+}
+
+/* Full Time FT button */
+.timer-action-btn.ft-btn {
+  background: #881337;
+  color: #fff;
+  border-color: #f43f5e;
+}
+
+.timer-action-btn.ft-btn.active-glow {
+  box-shadow: 0 0 16px rgba(244, 63, 94, 0.5);
+  border-color: #fda4af;
+}
+
+/* Referee Time Adjustment Nudge Bar */
+.stadium-timer-nudges {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 12px;
+  background: rgba(8, 22, 16, 0.85);
+  border: 1px solid #1a3c2e;
+  padding: 10px 16px;
+  border-radius: 6px;
+}
+
+.nudge-title {
+  color: #8da293;
+  font-family: 'DM Mono', monospace;
+  font-size: 10px;
+  font-weight: 700;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.nudge-buttons-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.nudge-buttons-row button {
+  padding: 5px 10px;
+  background: #10291e;
+  border: 1px solid #284c39;
+  color: var(--lime);
+  font-family: 'DM Mono', monospace;
+  font-size: 10px;
+  font-weight: 700;
+  border-radius: 3px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.nudge-buttons-row button:hover:not(:disabled) {
+  background: var(--lime);
+  color: var(--ink);
+  border-color: var(--lime);
+}
+
+.nudge-buttons-row button.reset-nudge {
+  color: #f59e0b;
+  border-color: #5c4314;
+}
+
+.nudge-buttons-row button.reset-nudge:hover:not(:disabled) {
+  background: #f59e0b;
+  color: #0c1a13;
+}
+
+.live-status-pill-big.live-completed {
+  background: rgba(126, 145, 131, 0.2);
+  border-color: #7e9183;
+  color: #d1dbd2;
+}
+
+@media(max-width: 1080px) {
+  .stadium-timer-actions-grid {
+    grid-template-columns: repeat(3, 1fr);
+  }
+}
+
+@media(max-width: 700px) {
+  .stadium-timer-actions-grid {
+    grid-template-columns: 1fr;
+  }
+  .stadium-timer-nudges {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+}
+
+
