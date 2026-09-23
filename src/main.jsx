@@ -425,10 +425,53 @@ function TeamsPage({ teams, go }) {
   const [filter, setFilter] = useState('All');
   const [search, setSearch] = useState('');
 
+  const groupTabs = useMemo(() => {
+    const base = ['All', 'Group A', 'Group B', 'Group C', 'Group D'];
+    const extras = [];
+    (teams || []).forEach(t => {
+      const g = (t.group || '').trim();
+      if (g) {
+        const isStandard = base.some(b => {
+          const cb = b.toLowerCase().replace(/[^a-z0-9]/g, '');
+          const cg = g.toLowerCase().replace(/[^a-z0-9]/g, '');
+          return cb === cg || cb === `group${cg}` || `group${cb}` === cg;
+        });
+        if (!isStandard && !extras.some(e => e.toLowerCase() === g.toLowerCase())) {
+          extras.push(g);
+        }
+      }
+    });
+    return [...base, ...extras];
+  }, [teams]);
+
+  const isMatchGroup = (teamGroup, targetFilter) => {
+    if (targetFilter === 'All') return true;
+    if (!teamGroup) return false;
+    const clean = (s) => String(s || '').toLowerCase().replace(/[^a-z0-9]/g, '');
+    const cleanTarget = clean(targetFilter);
+    const cleanTeam = clean(teamGroup);
+
+    if (cleanTarget === cleanTeam) return true;
+
+    const targetLetter = cleanTarget.replace(/^group/, '');
+    const teamLetter = cleanTeam.replace(/^group/, '');
+
+    if (targetLetter && teamLetter && targetLetter === teamLetter) return true;
+    if (targetLetter && cleanTeam === targetLetter) return true;
+    if (teamLetter && cleanTarget === teamLetter) return true;
+
+    return false;
+  };
+
   const filtered = useMemo(() => {
-    return teams.filter(team => {
-      const matchFilter = filter === 'All' || team.group === filter;
-      const matchSearch = !search || team.name?.toLowerCase().includes(search.toLowerCase()) || team.city?.toLowerCase().includes(search.toLowerCase());
+    return (teams || []).filter(team => {
+      const matchFilter = isMatchGroup(team.group, filter);
+      const searchLower = search.trim().toLowerCase();
+      const matchSearch = !searchLower || 
+        team.name?.toLowerCase().includes(searchLower) || 
+        team.city?.toLowerCase().includes(searchLower) ||
+        team.shortName?.toLowerCase().includes(searchLower) ||
+        team.group?.toLowerCase().includes(searchLower);
       return matchFilter && matchSearch;
     });
   }, [teams, filter, search]);
@@ -439,7 +482,7 @@ function TeamsPage({ teams, go }) {
       <section className="content-shell">
         <div className="page-toolbar">
           <div className="filter-tabs">
-            {['All', 'Group A', 'Group B'].map(group => (
+            {groupTabs.map(group => (
               <button key={group} className={filter === group ? 'active' : ''} onClick={() => setFilter(group)}>{group}</button>
             ))}
           </div>
@@ -485,7 +528,12 @@ function TeamsPage({ teams, go }) {
             ))}
           </div>
         ) : (
-          <EmptyMessage title="No teams found." text="Try clearing your search filter or register a new team." icon={<Users />} action={<button className="primary-button" onClick={() => go('/register')}>Register team <ArrowUpRight size={16} /></button>} />
+          <EmptyMessage 
+            title={filter === 'All' ? "No teams found." : `No teams in ${filter}`} 
+            text={search ? "Try clearing your search query or choosing another group filter." : (filter === 'All' ? "Try clearing your search filter or register a new team." : `No teams have been assigned to ${filter} yet.`)} 
+            icon={<Users />} 
+            action={<button className="primary-button" onClick={() => go('/register')}>Register team <ArrowUpRight size={16} /></button>} 
+          />
         )}
       </section>
     </>
@@ -1492,7 +1540,7 @@ function AdminDashboard({ tournament, setActive }) {
 function SettingsEditor({ data, save }) { const [draft, setDraft] = useState(data.settings); const [saving, setSaving] = useState(false); useEffect(() => setDraft(data.settings), [data.settings]); const fields = [['name', 'Tournament name'], ['edition', 'Edition'], ['year', 'Year'], ['organizer', 'Organiser'], ['date', 'Tournament dates'], ['status', 'Public status'], ['entryFee', 'Entry fee (INR)', 'number'], ['format', 'Competition format'], ['matchType', 'Match format'], ['venue', 'Venue'], ['address', 'Address'], ['mapLink', 'Google Maps link'], ['about', 'About the tournament', 'textarea'], ['registrationNote', 'Registration note', 'textarea']]; const submit = async (event) => { event.preventDefault(); setSaving(true); try { await save({ ...data, settings: { ...draft, entryFee: Number(draft.entryFee || 0) } }); } finally { setSaving(false); } }; return <div className="admin-content"><form className="admin-form settings-form" onSubmit={submit}><div className="form-heading"><div><span>PUBLIC WEBSITE CONTENT</span><h2>Tournament settings</h2></div><button className="save-button" disabled={saving}><Save size={16} /> {saving ? 'Saving...' : 'Save changes'}</button></div><div className="form-grid">{fields.map(([key, label, type]) => <FormField key={key} label={label} type={type} value={draft[key] ?? ''} onChange={(value) => setDraft({ ...draft, [key]: value })} />)}<label className="toggle-field"><input type="checkbox" checked={Boolean(draft.registrationOpen)} onChange={(event) => setDraft({ ...draft, registrationOpen: event.target.checked })} /><span /><div><strong>Registration is open</strong><small>Shows an active registration status on the public page.</small></div></label></div></form></div>; }
 
 const collectionConfig = {
-  teams: { title: 'Teams', singular: 'team', icon: Users, fields: [['name', 'Team / College Name'], ['logo', 'College Logo URL (Public image link, e.g. https://...)'], ['shortName', 'Short Name / Initials (Optional fallback, e.g. BBIT)'], ['city', 'City / College Location'], ['group', 'Group (e.g. Group A / Group B)']] },
+  teams: { title: 'Teams', singular: 'team', icon: Users, fields: [['name', 'Team / College Name'], ['logo', 'College Logo URL (Public image link, e.g. https://...)'], ['shortName', 'Short Name / Initials (Optional fallback, e.g. BBIT)'], ['city', 'City / College Location'], ['group', 'Group (e.g. Group A / Group B / Group C / Group D)']] },
   fixtures: { title: 'Fixtures & Live Match', singular: 'fixture', icon: CalendarDays, fields: [['date', 'Match date'], ['time', 'Kick-off time'], ['stage', 'Stage'], ['home', 'Home team'], ['away', 'Away team'], ['venue', 'Venue'], ['status', 'Status (scheduled / live / completed)'], ['minute', 'Match minute (e.g. 64\', HT, FT)'], ['liveNote', 'Live Ticker Commentary Note', 'textarea'], ['homeScore', 'Home score', 'number'], ['awayScore', 'Away score', 'number']] },
   standings: { title: 'Standings', singular: 'standing', icon: Table2, fields: [['team', 'Team'], ['played', 'Played', 'number'], ['wins', 'Wins', 'number'], ['draws', 'Draws', 'number'], ['losses', 'Losses', 'number'], ['gf', 'Goals for', 'number'], ['ga', 'Goals against', 'number'], ['points', 'Points', 'number']] },
   champions: { title: 'History', singular: 'champion record', icon: Trophy, fields: [['year', 'Year'], ['winner', 'Champion'], ['runnerUp', 'Runner-up']] },
@@ -1697,7 +1745,35 @@ function FixtureEventsEditor({ draft, setDraft }) {
   );
 }
 
-function FormField({ label, type = 'text', value, onChange }) { return <label className={type === 'textarea' ? 'wide-field' : ''}>{label}{type === 'textarea' ? <textarea value={value} onChange={(event) => onChange(event.target.value)} rows="4" /> : <input type={type} value={value} onChange={(event) => onChange(event.target.value)} />}</label>; }
+function FormField({ label, type = 'text', value, onChange }) {
+  const isGroupField = label.toLowerCase().includes('group');
+  return (
+    <label className={type === 'textarea' ? 'wide-field' : ''}>
+      {label}
+      {type === 'textarea' ? (
+        <textarea value={value} onChange={(event) => onChange(event.target.value)} rows="4" />
+      ) : isGroupField ? (
+        <>
+          <input
+            type={type}
+            list="group-presets"
+            placeholder="e.g. Group A / Group B / Group C / Group D"
+            value={value}
+            onChange={(event) => onChange(event.target.value)}
+          />
+          <datalist id="group-presets">
+            <option value="Group A" />
+            <option value="Group B" />
+            <option value="Group C" />
+            <option value="Group D" />
+          </datalist>
+        </>
+      ) : (
+        <input type={type} value={value} onChange={(event) => onChange(event.target.value)} />
+      )}
+    </label>
+  );
+}
 
 function recordTitle(collection, item) {
   if (collection === 'fixtures') return `${item.home || 'TBA'} vs ${item.away || 'TBA'}`;
