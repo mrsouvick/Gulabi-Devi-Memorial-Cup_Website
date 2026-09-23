@@ -1759,15 +1759,3 @@
   margin-right: 8px;
   display: inline-block;
 }
-.bracket-mini-logo {
-  width: 18px;
-  height: 18px;
-  border-radius: 50%;
-  border: 1px solid var(--gold);
-  background: #ffffff;
-  object-fit: contain;
-  padding: 1px;
-  vertical-align: middle;
-  margin-right: 6px;
-  display: inline-block;
-}

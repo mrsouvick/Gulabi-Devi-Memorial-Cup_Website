@@ -24,7 +24,7 @@ const dignitaries = [
 
 const publicRoutes = [
   ['Home', '/'], ['Teams', '/teams'], ['Fixtures', '/fixtures'], ['Standings', '/standings'],
-  ['Bracket', '/bracket'], ['History', '/history'], ['Venue', '/venue'], ['Contact', '/contact']
+  ['History', '/history'], ['Venue', '/venue'], ['Contact', '/contact']
 ];
 
 const adminSections = [
@@ -38,7 +38,7 @@ function routeFromLocation() {
   const hash = window.location.hash.replace(/^#/, '');
   const path = window.location.pathname.replace(/\/$/, '') || '/';
   const normalizedPath = hash ? (hash.startsWith('/') ? hash : '/' + hash) : path;
-  const validRoutes = ['/', '/teams', '/fixtures', '/standings', '/bracket', '/history', '/venue', '/register', '/contact', '/admin'];
+  const validRoutes = ['/', '/teams', '/fixtures', '/standings', '/history', '/venue', '/register', '/contact', '/admin'];
   return validRoutes.includes(normalizedPath) ? normalizedPath : '/';
 }
 
@@ -139,7 +139,6 @@ function PublicSite({ tournament, route, go, notice, setNotice, save }) {
       {route === '/teams' && <TeamsPage teams={tournament.teams} go={navigate} />}
       {route === '/fixtures' && <FixturesPage fixtures={tournament.fixtures} teams={tournament.teams} go={navigate} />}
       {route === '/standings' && <StandingsPage standings={tournament.standings} teams={tournament.teams} />}
-      {route === '/bracket' && <BracketPage fixtures={tournament.fixtures} teams={tournament.teams} />}
       {route === '/history' && <HistoryPage champions={tournament.champions} />}
       {route === '/venue' && <VenuePage settings={settings} />}
       {route === '/register' && <RegisterPage tournament={tournament} settings={settings} contacts={tournament.contacts} registrations={tournament.registrations} save={save} go={navigate} />}
@@ -673,98 +672,7 @@ function StandingsPage({ standings, teams = [] }) {
   );
 }
 
-function BracketPage({ fixtures = [], teams = [] }) {
-  const qfs = useMemo(() => fixtures.filter(f => (f.stage || '').toLowerCase().includes('quarter') || (f.stage || '').toLowerCase().includes('qf')), [fixtures]);
-  const sfs = useMemo(() => fixtures.filter(f => (f.stage || '').toLowerCase().includes('semi') || (f.stage || '').toLowerCase().includes('sf')), [fixtures]);
-  const finals = useMemo(() => fixtures.filter(f => (f.stage || '').toLowerCase().includes('final') && !(f.stage || '').toLowerCase().includes('semi') && !(f.stage || '').toLowerCase().includes('quarter')), [fixtures]);
 
-  const renderMatchCard = (fixture, defaultLabel, highlight = false, isFinal = false) => {
-    if (!fixture) {
-      return (
-        <div className={`bracket-card-rich ${highlight ? 'highlight' : ''} ${isFinal ? 'championship-card' : ''}`}>
-          <small>{defaultLabel}</small>
-          <div className="bracket-team"><span>Team TBD</span><b>-</b></div>
-          <div className="bracket-team"><span>Team TBD</span><b>-</b></div>
-          {isFinal && <div className="champion-badge"><Trophy size={16} /> TROPHY MATCH</div>}
-        </div>
-      );
-    }
-    const homeScore = fixture.status === 'completed' ? (fixture.homeScore ?? 0) : '-';
-    const awayScore = fixture.status === 'completed' ? (fixture.awayScore ?? 0) : '-';
-    const homeIsWinner = fixture.status === 'completed' && Number(fixture.homeScore) > Number(fixture.awayScore);
-    const awayIsWinner = fixture.status === 'completed' && Number(fixture.awayScore) > Number(fixture.homeScore);
-    const homeLogo = getTeamLogo(fixture.home, teams);
-    const awayLogo = getTeamLogo(fixture.away, teams);
-
-    return (
-      <div className={`bracket-card-rich ${highlight ? 'highlight' : ''} ${isFinal ? 'championship-card' : ''}`}>
-        <small>{fixture.stage || defaultLabel} {fixture.date ? `(${fixture.date})` : ''}</small>
-        <div className={`bracket-team ${homeIsWinner ? 'winner' : ''}`}>
-          <span>
-            {homeLogo && (
-              <img
-                src={homeLogo}
-                alt=""
-                className="bracket-mini-logo"
-                onError={(e) => { e.currentTarget.style.display = 'none'; }}
-              />
-            )}
-            {fixture.home || 'Home Team'}
-          </span>
-          <b>{homeScore}</b>
-        </div>
-        <div className={`bracket-team ${awayIsWinner ? 'winner' : ''}`}>
-          <span>
-            {awayLogo && (
-              <img
-                src={awayLogo}
-                alt=""
-                className="bracket-mini-logo"
-                onError={(e) => { e.currentTarget.style.display = 'none'; }}
-              />
-            )}
-            {fixture.away || 'Away Team'}
-          </span>
-          <b>{awayScore}</b>
-        </div>
-        {isFinal && <div className="champion-badge"><Trophy size={16} /> {fixture.status === 'completed' ? 'CHAMPION DECIDED' : 'TROPHY MATCH'}</div>}
-      </div>
-    );
-  };
-
-  return (
-    <>
-      <PageHero kicker="ROAD TO THE TROPHY" title="KNOCKOUT BRACKET" text="The tournament progression tree leading to the Gulabi Devi Memorial Cup." />
-      <section className="content-shell">
-        <div className="bracket-tree-container">
-          <div className="bracket-column">
-            <div className="bracket-col-title">QUARTER-FINALS</div>
-            {qfs.length ? qfs.map((qf, i) => <React.Fragment key={qf.id || i}>{renderMatchCard(qf, `MATCH 0${i + 1}`, false, false)}</React.Fragment>) : (
-              <>
-                {renderMatchCard(null, 'MATCH 01')}
-                {renderMatchCard(null, 'MATCH 02')}
-              </>
-            )}
-          </div>
-
-          <div className="bracket-column">
-            <div className="bracket-col-title">SEMI-FINALS</div>
-            {sfs.length ? sfs.map((sf, i) => <React.Fragment key={sf.id || i}>{renderMatchCard(sf, `SEMI-FINAL 0${i + 1}`, true, false)}</React.Fragment>) : (
-              renderMatchCard(null, 'SEMI-FINAL 01', true, false)
-            )}
-          </div>
-
-          <div className="bracket-column final-column">
-            <div className="bracket-col-title">GRAND FINAL 🏆</div>
-            {finals.length ? renderMatchCard(finals[0], 'GULABI DEVI CUP FINAL', false, true) : (
-              renderMatchCard(null, 'GULABI DEVI CUP FINAL', false, true)
-            )}
-          </div>
-        </div>
-      </section>
-    </>
-  );
-}
 
 function HistoryPage({ champions }) {
   return (
@@ -1005,7 +913,7 @@ function ContactPage({ contacts, settings, tournament, save }) {
 }
 
 function PublicFooter({ settings, go }) {
-  const quickLinks = [['Teams', '/teams'], ['Fixtures', '/fixtures'], ['Standings', '/standings'], ['Bracket', '/bracket']];
+  const quickLinks = [['Teams', '/teams'], ['Fixtures', '/fixtures'], ['Standings', '/standings'], ['History', '/history']];
   return (
     <footer className="site-footer">
       <div className="footer-pitch-texture" aria-hidden="true" />
